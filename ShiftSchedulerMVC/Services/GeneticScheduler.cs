@@ -1,4 +1,5 @@
 ﻿using ShiftSchedulerMVC.Models;
+using System.Diagnostics;
 
 namespace ShiftSchedulerMVC.Services
 {
@@ -15,6 +16,7 @@ namespace ShiftSchedulerMVC.Services
             double mutationRate = 0.3;
 
             var rng = new Random();
+            var stopwatch = Stopwatch.StartNew();
             var logPath = Logger.CreateLogFile();
 
             var population = SmartInitialPopulation(populationSize, dates, employees, shiftRequirements, rng);
@@ -57,6 +59,9 @@ namespace ShiftSchedulerMVC.Services
 
                 population = nextGeneration;
             }
+
+            stopwatch.Stop(); // ⏱ koniec pomiaru
+            Logger.Append(logPath, $"Total runtime: {stopwatch.Elapsed.TotalSeconds:F2} seconds"); // 🕒 zapis do logu
 
             return bestChromosome;
         }
