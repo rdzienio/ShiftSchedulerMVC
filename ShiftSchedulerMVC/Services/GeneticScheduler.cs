@@ -24,6 +24,8 @@ namespace ShiftSchedulerMVC.Services
             Chromosome bestChromosome = null;
             double bestFitness = double.MinValue;
 
+            Logger.Append(logPath, $"generations = {generations};\npopulationSize = {populationSize};\ncrossoverRate = {crossoverRate};\nmutationRate = {mutationRate};");
+
             for (int gen = 0; gen < generations; gen++)
             {
                 population = population.OrderByDescending(c => EvaluateFitness(c, shiftRequirements)).ToList();
