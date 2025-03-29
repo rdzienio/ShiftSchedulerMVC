@@ -2,28 +2,58 @@
 
 @{
     ViewData["Title"] = "Wynik";
+    var allEmployees = Model.Genes
+        .SelectMany(g => g.AssignedEmployees)
+        .GroupBy(e => e.Id)
+        .Select(g => g.First())
+        .OrderBy(e => e.Id)
+        .ToList();
+
+    var allDates = Model.Genes
+        .Select(g => g.Date.Date)
+        .Distinct()
+        .OrderBy(d => d)
+        .ToList();
+
+    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
+        shift == ShiftType.Morning ? ("1", "lightgreen") :
+        shift == ShiftType.Afternoon ? ("2", "khaki") :
+        shift == ShiftType.Night ? ("3", "lightblue") :
+        ("", "white");
 }
 
 <h2>Wygenerowany Harmonogram</h2>
 
-<table class="table">
-    <thead>
+<table class="table table-bordered text-center">
+    <thead class="table-light">
         <tr>
-            <th>Data</th>
-            <th>Zmiana</th>
-            <th>Pracownicy</th>
+            <th>Pracownik</th>
+            @foreach (var date in allDates)
+            {
+                <th>@date.ToString("dd.MM")</th>
+            }
         </tr>
     </thead>
     <tbody>
-        @foreach (var gene in Model.Genes)
+        @foreach (var emp in allEmployees)
         {
             <tr>
-                <td>@gene.Date.ToString("yyyy-MM-dd")</td>
-                <td>@gene.Shift</td>
-                <td>
-                    @string.Join(", ", gene.AssignedEmployees.Select(e => e.Name))
-                </td>
+                <td>@emp.Name</td>
+                @foreach (var date in allDates)
+                {
+                    var gene = Model.Genes
+                    .FirstOrDefault(g => g.Date.Date == date && g.AssignedEmployees.Any(e => e.Id == emp.Id));
+                    var (code, color) = gene != null ? shiftInfo(gene.Shift) : ("", "white");
+                    <td style="background-color:@color">@code</td>
+                }
             </tr>
         }
     </tbody>
 </table>
+
+<p>
+    <strong>Legenda:</strong>
+    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
+    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
+    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna
+</p>
