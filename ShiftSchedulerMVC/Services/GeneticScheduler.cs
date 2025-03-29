@@ -5,16 +5,16 @@ namespace ShiftSchedulerMVC.Services
 {
     public static class GeneticScheduler
     {
-        private static int workingHours = 168;
+        private static int workingHours = 176;
         public static Chromosome Run(
             List<Employee> employees,
             List<DateTime> dates,
             Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements)
         {
             int generations = 100;
-            int populationSize = 400;
-            double crossoverRate = 0.6;
-            double mutationRate = 0.3;
+            int populationSize = 450;
+            double crossoverRate = 0.9;
+            double mutationRate = 0.5;
 
             var rng = new Random();
             var stopwatch = Stopwatch.StartNew();
