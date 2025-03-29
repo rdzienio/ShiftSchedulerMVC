@@ -5,13 +5,14 @@ namespace ShiftSchedulerMVC.Services
 {
     public static class GeneticScheduler
     {
+        private static int workingHours = 168;
         public static Chromosome Run(
             List<Employee> employees,
             List<DateTime> dates,
             Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements)
         {
             int generations = 100;
-            int populationSize = 300;
+            int populationSize = 400;
             double crossoverRate = 0.6;
             double mutationRate = 0.3;
 
@@ -24,7 +25,7 @@ namespace ShiftSchedulerMVC.Services
             Chromosome bestChromosome = null;
             double bestFitness = double.MinValue;
 
-            Logger.Append(logPath, $"generations = {generations};\npopulationSize = {populationSize};\ncrossoverRate = {crossoverRate};\nmutationRate = {mutationRate};");
+            Logger.Append(logPath, $"workingHours = {workingHours};\ngenerations = {generations};\npopulationSize = {populationSize};\ncrossoverRate = {crossoverRate};\nmutationRate = {mutationRate};");
 
             for (int gen = 0; gen < generations; gen++)
             {
@@ -103,8 +104,8 @@ namespace ShiftSchedulerMVC.Services
             }
 
             foreach (var kvp in employeeHours)
-                if (kvp.Value > 40)
-                    penalty += (kvp.Value - 40) * 2;
+                if (kvp.Value > workingHours)
+                    penalty += (kvp.Value - workingHours) * 2;
 
             foreach (var kvp in dailyAssignments)
                 if (kvp.Value > 1)

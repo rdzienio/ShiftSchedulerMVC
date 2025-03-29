@@ -16,7 +16,7 @@ namespace ShiftSchedulerMVC.Services
         public static List<DateTime> GetDates()
         {
             DateTime start = DateTime.Today;
-            return Enumerable.Range(0, 7).Select(i => start.AddDays(i)).ToList();
+            return Enumerable.Range(0, 30).Select(i => start.AddDays(i)).ToList();
         }
 
         public static Dictionary<DateTime, Dictionary<ShiftType, int>> GetShiftRequirements(List<DateTime> dates)
