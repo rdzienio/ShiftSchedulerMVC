@@ -1,0 +1,29 @@
+﻿@model ShiftSchedulerMVC.Models.Chromosome
+
+@{
+    ViewData["Title"] = "Wynik";
+}
+
+<h2>Wygenerowany Harmonogram</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Zmiana</th>
+            <th>Pracownicy</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var gene in Model.Genes)
+        {
+            <tr>
+                <td>@gene.Date.ToString("yyyy-MM-dd")</td>
+                <td>@gene.Shift</td>
+                <td>
+                    @string.Join(", ", gene.AssignedEmployees.Select(e => e.Name))
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
