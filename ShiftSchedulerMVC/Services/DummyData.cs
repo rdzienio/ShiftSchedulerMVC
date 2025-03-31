@@ -26,7 +26,7 @@ namespace ShiftSchedulerMVC.Services
             {
                 dict[date] = new Dictionary<ShiftType, int>
                 {
-                    { ShiftType.Morning, 2 },
+                    { ShiftType.Morning, 1 },
                     { ShiftType.Afternoon, 2 },
                     { ShiftType.Night, 2 }
                 };
