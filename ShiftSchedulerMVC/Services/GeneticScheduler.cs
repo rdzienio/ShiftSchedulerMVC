@@ -14,7 +14,7 @@ namespace ShiftSchedulerMVC.Services
             int generations = 100;
             int populationSize = 450;
             double crossoverRate = 0.9;
-            double mutationRate = 0.5;
+            double mutationRate = 0.4;
 
             var rng = new Random();
             var stopwatch = Stopwatch.StartNew();

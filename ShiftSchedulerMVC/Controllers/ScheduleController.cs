@@ -14,11 +14,15 @@ namespace ShiftSchedulerMVC.Controllers
         [HttpPost]
         public IActionResult Generate(ShiftRequirementInput input)
         {
+
+            //var dates = GenerateDateRange(input.StartDate, input.EndDate);
+            var dates = GenerateDateRange(input.StartDate, input.EndDate);
+
             //var employees = DummyEmployees();
             var employees = GenerateEmployees(input.EmployeeCount);
 
             //var dates = GenerateDateRange(DateTime.Today, 31); // tymczasowo
-            var dates = GenerateDateRange(DateTime.Today, input.NumberOfDays); // tymczasowo
+            //var dates = GenerateDateRange(DateTime.Today, input.NumberOfDays); // tymczasowo
 
             var shiftRequirements = new Dictionary<DateTime, Dictionary<ShiftType, int>>();
             foreach (var date in dates)
@@ -44,7 +48,7 @@ namespace ShiftSchedulerMVC.Controllers
             return employees;
         }
 
-        private List<DateTime> GenerateDateRange(DateTime start, int days)
+        /*private List<DateTime> GenerateDateRange(DateTime start, int days)
         {
             var dates = new List<DateTime>();
             for (int i = 0; i < days; i++)
@@ -52,7 +56,19 @@ namespace ShiftSchedulerMVC.Controllers
                 dates.Add(start.AddDays(i));
             }
             return dates;
+        }*/
+
+        private List<DateTime> GenerateDateRange(DateTime start, DateTime end)
+        {
+            var dates = new List<DateTime>();
+            for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
+            {
+                dates.Add(date);
+            }
+            return dates;
         }
+
+
 
         private List<Employee> GenerateEmployees(int count)
         {
