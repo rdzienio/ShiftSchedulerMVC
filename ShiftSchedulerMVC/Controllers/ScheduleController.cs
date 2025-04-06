@@ -14,61 +14,44 @@ namespace ShiftSchedulerMVC.Controllers
         [HttpPost]
         public IActionResult Generate(ShiftRequirementInput input)
         {
-
-            //var dates = GenerateDateRange(input.StartDate, input.EndDate);
             var dates = GenerateDateRange(input.StartDate, input.EndDate);
-
-            //var employees = DummyEmployees();
             var employees = GenerateEmployees(input.EmployeeCount);
 
-            //var dates = GenerateDateRange(DateTime.Today, 31); // tymczasowo
-            //var dates = GenerateDateRange(DateTime.Today, input.NumberOfDays); // tymczasowo
-
             var shiftRequirements = new Dictionary<DateTime, Dictionary<ShiftType, int>>();
+
             foreach (var date in dates)
             {
+                var isSaturday = date.DayOfWeek == DayOfWeek.Saturday;
+                var isSunday = date.DayOfWeek == DayOfWeek.Sunday;
+
+                int morning = input.MorningCount;
+                int afternoon = input.AfternoonCount;
+                int night = input.NightCount;
+
+                if (isSaturday)
+                {
+                    morning = input.SaturdayMorningCount;
+                    afternoon = input.SaturdayAfternoonCount;
+                    night = input.SaturdayNightCount;
+                }
+                else if (isSunday)
+                {
+                    morning = input.SundayMorningCount;
+                    afternoon = input.SundayAfternoonCount;
+                    night = input.SundayNightCount;
+                }
+
                 shiftRequirements[date] = new Dictionary<ShiftType, int>
                 {
-                    { ShiftType.Morning, input.MorningCount },
-                    { ShiftType.Afternoon, input.AfternoonCount },
-                    { ShiftType.Night, input.NightCount }
+                    { ShiftType.Morning, morning },
+                    { ShiftType.Afternoon, afternoon },
+                    { ShiftType.Night, night }
                 };
             }
 
-            var result = GeneticScheduler.Run(employees, dates, shiftRequirements);
+            var result = GeneticScheduler.Run(employees, dates, shiftRequirements, input.WorkingHours);
             return View("Result", result);
         }
-        private List<Employee> DummyEmployees()
-        {
-            var employees = new List<Employee>();
-            for (int i = 1; i <= 9; i++)
-            {
-                employees.Add(new Employee { Id = i, Name = $"Employee {i}" });
-            }
-            return employees;
-        }
-
-        /*private List<DateTime> GenerateDateRange(DateTime start, int days)
-        {
-            var dates = new List<DateTime>();
-            for (int i = 0; i < days; i++)
-            {
-                dates.Add(start.AddDays(i));
-            }
-            return dates;
-        }*/
-
-        private List<DateTime> GenerateDateRange(DateTime start, DateTime end)
-        {
-            var dates = new List<DateTime>();
-            for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
-            {
-                dates.Add(date);
-            }
-            return dates;
-        }
-
-
 
         private List<Employee> GenerateEmployees(int count)
         {
@@ -80,5 +63,14 @@ namespace ShiftSchedulerMVC.Controllers
             return employees;
         }
 
+        private List<DateTime> GenerateDateRange(DateTime start, DateTime end)
+        {
+            var dates = new List<DateTime>();
+            for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
+            {
+                dates.Add(date);
+            }
+            return dates;
+        }
     }
 }

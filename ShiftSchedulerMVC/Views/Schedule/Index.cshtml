@@ -26,9 +26,53 @@
                 asp-items="@(new SelectList(countOptions))">
         </select>
     </div>
+
+    <hr />
+    <h4>Wymagania weekendowe</h4>
+
+    <div class="form-group">
+        <label for="SaturdayMorningCount">Sobota – zmiana poranna</label>
+        <select asp-for="SaturdayMorningCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="SaturdayAfternoonCount">Sobota – zmiana popołudniowa</label>
+        <select asp-for="SaturdayAfternoonCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="SaturdayNightCount">Sobota – zmiana nocna</label>
+        <select asp-for="SaturdayNightCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="SundayMorningCount">Niedziela – zmiana poranna</label>
+        <select asp-for="SundayMorningCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="SundayAfternoonCount">Niedziela – zmiana popołudniowa</label>
+        <select asp-for="SundayAfternoonCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="SundayNightCount">Niedziela – zmiana nocna</label>
+        <select asp-for="SundayNightCount" class="form-control"
+                asp-items="@(new SelectList(countOptions))">
+        </select>
+    </div>
+
+    <hr />
+
     <div class="form-group">
         <label for="EmployeeCount">Łączna liczba pracowników</label>
-        <input asp-for="EmployeeCount" class="form-control" type="number" min="1" value="9"/>
+        <input asp-for="EmployeeCount" class="form-control" type="number" min="1" value="9" />
     </div>
     <div class="form-group">
         <label for="StartDate">Data początkowa</label>
@@ -38,7 +82,10 @@
         <label for="EndDate">Data końcowa</label>
         <input asp-for="EndDate" class="form-control" type="date" />
     </div>
-
+    <div class="form-group">
+        <label for="WorkingHours">Łączna liczba roboczogodzin w okresie</label>
+        <input asp-for="WorkingHours" class="form-control" type="number" value="160" required />
+    </div>
 
     <button type="submit" class="btn btn-primary mt-3">Generuj harmonogram</button>
 </form>

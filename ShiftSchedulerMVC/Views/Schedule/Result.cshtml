@@ -20,7 +20,17 @@
         shift == ShiftType.Afternoon ? ("2", "khaki") :
         shift == ShiftType.Night ? ("3", "lightblue") :
         ("", "white");
+
+    Func<DateTime, bool> isWeekend = date =>
+        date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 }
+
+<style>
+    .weekend-header {
+        color: red;
+        font-weight: bold;
+    }
+</style>
 
 <h2>Wygenerowany Harmonogram</h2>
 
@@ -30,7 +40,8 @@
             <th>Pracownik</th>
             @foreach (var date in allDates)
             {
-                <th>@date.ToString("dd.MM")</th>
+                var headerClass = isWeekend(date) ? "weekend-header" : "";
+                <th class="@headerClass">@date.ToString("dd.MM")</th>
             }
         </tr>
     </thead>

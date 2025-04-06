@@ -7,14 +7,16 @@ namespace ShiftSchedulerMVC.Services
     {
         private static int workingHours = 176;
         public static Chromosome Run(
-            List<Employee> employees,
-            List<DateTime> dates,
-            Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements)
+    List<Employee> employees,
+    List<DateTime> dates,
+    Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements,
+    int workingHoursReq)
         {
-            int generations = 100;
-            int populationSize = 450;
+            int generations = 150;
+            int populationSize = 600;
             double crossoverRate = 0.9;
-            double mutationRate = 0.4;
+            double mutationRate = 0.5;
+            workingHours = workingHoursReq;
 
             var rng = new Random();
             var stopwatch = Stopwatch.StartNew();
@@ -33,8 +35,7 @@ namespace ShiftSchedulerMVC.Services
                 var currentBest = population[0];
                 double currentFitness = EvaluateFitness(currentBest, shiftRequirements);
 
-                Logger.Append(logPath, $"Generation {gen + 1}: Best Fitness = {currentFitness:F5}"); // ← log wpis
-
+                Logger.Append(logPath, $"Generation {gen + 1}: Best Fitness = {currentFitness:F5}");
 
                 if (currentFitness > bestFitness)
                 {
@@ -63,11 +64,18 @@ namespace ShiftSchedulerMVC.Services
                 population = nextGeneration;
             }
 
-            stopwatch.Stop(); // ⏱ koniec pomiaru
-            Logger.Append(logPath, $"Total runtime: {stopwatch.Elapsed.TotalSeconds:F2} seconds"); // 🕒 zapis do logu
+            stopwatch.Stop();
+            Logger.Append(logPath, $"Total runtime: {stopwatch.Elapsed.TotalSeconds:F2} seconds");
+
+            // 📝 Dodatkowy log tylko dla najlepszego chromosomu
+            var errorLog = EvaluateFitnessWithErrors(bestChromosome, shiftRequirements, workingHours);
+            Logger.Append(logPath, "--- Final Best Chromosome Diagnostics ---");
+            foreach (var line in errorLog)
+                Logger.Append(logPath, line);
 
             return bestChromosome;
         }
+
 
         private static double EvaluateFitness(Chromosome chrom, Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements)
         {
@@ -75,6 +83,8 @@ namespace ShiftSchedulerMVC.Services
             var employeeHours = new Dictionary<int, int>();
             var dailyAssignments = new Dictionary<(int, DateTime), int>();
             var shiftHistory = new Dictionary<int, List<(DateTime, ShiftType)>>();
+
+            var errorLog = new List<string>();
 
             foreach (var gene in chrom.Genes)
             {
@@ -85,9 +95,16 @@ namespace ShiftSchedulerMVC.Services
                 int assigned = gene.AssignedEmployees.Count;
 
                 if (assigned < required)
+                {
                     penalty += (required - assigned) * 150;
+                    errorLog.Add($"Za mało osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
+                }
+
                 if (assigned > required)
+                {
                     penalty += (assigned - required) * 5;
+                    errorLog.Add($"Za dużo osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
+                }
 
                 foreach (var emp in gene.AssignedEmployees)
                 {
@@ -104,12 +121,22 @@ namespace ShiftSchedulerMVC.Services
             }
 
             foreach (var kvp in employeeHours)
+            {
                 if (kvp.Value > workingHours)
+                {
                     penalty += (kvp.Value - workingHours) * 2;
+                    //errorLog.Add($"Pracownik {kvp.Key} przekroczył limit godzin ({kvp.Value}h)");
+                }
+            }
 
             foreach (var kvp in dailyAssignments)
+            {
                 if (kvp.Value > 1)
+                {
                     penalty += (kvp.Value - 1) * 15;
+                    //errorLog.Add($"Pracownik {kvp.Key.Item1} ma więcej niż jedną zmianę w dniu {kvp.Key.Item2:yyyy-MM-dd}");
+                }
+            }
 
             foreach (var kvp in shiftHistory)
             {
@@ -119,12 +146,69 @@ namespace ShiftSchedulerMVC.Services
                     var prevEnd = GetShiftEnd(shifts[i - 1].Item1, shifts[i - 1].Item2);
                     var currStart = GetShiftStart(shifts[i].Item1, shifts[i].Item2);
                     var rest = (currStart - prevEnd).TotalHours;
-                    if (rest < 12) penalty += 20;
+                    if (rest < 12)
+                    {
+                        penalty += 20;
+                        //errorLog.Add($"Pracownik {kvp.Key} miał zbyt krótką przerwę ({rest:0.##}h) między zmianami {shifts[i - 1].Item1:yyyy-MM-dd} [{shifts[i - 1].Item2}] i {shifts[i].Item1:yyyy-MM-dd} [{shifts[i].Item2}]");
+                    }
                 }
             }
 
-            return 1.0 / (1.0 + penalty);
+            // Sprawdzenie tygodniowego odpoczynku (minimum 35h w tygodniu)
+            foreach (var kvp in shiftHistory)
+            {
+                var shifts = kvp.Value.OrderBy(s => s.Item1).ToList();
+                if (shifts.Count == 0) continue;
+
+                var shiftPeriods = shifts.Select(s =>
+                {
+                    DateTime start = GetShiftStart(s.Item1, s.Item2);
+                    DateTime end = GetShiftEnd(s.Item1, s.Item2);
+                    return (Start: start, End: end);
+                }).OrderBy(p => p.Start).ToList();
+
+                DateTime weekStart = shiftPeriods.First().Start.Date;
+                DateTime weekEnd = weekStart.AddDays(7);
+
+                while (weekStart <= shiftPeriods.Last().End)
+                {
+                    double maxBreak = 0;
+                    for (int i = 1; i < shiftPeriods.Count; i++)
+                    {
+                        if (shiftPeriods[i].Start < weekStart || shiftPeriods[i].Start > weekEnd) continue;
+
+                        var previous = shiftPeriods[i - 1];
+                        var current = shiftPeriods[i];
+
+                        double breakHours = (current.Start - previous.End).TotalHours;
+                        if (breakHours > maxBreak)
+                            maxBreak = breakHours;
+                    }
+
+                    if (maxBreak < 35)
+                    {
+                        penalty += 100;
+                        //errorLog.Add($"Pracownik {kvp.Key} nie miał 35h przerwy tygodniowej w tygodniu zaczynającym {weekStart:yyyy-MM-dd}");
+                    }
+
+                    weekStart = weekStart.AddDays(7);
+                    weekEnd = weekStart.AddDays(7);
+                }
+            }
+
+            double fitness = 1.0 / (1.0 + penalty);
+
+            //* 🔍 Diagnoza do konsoli
+            /*Console.WriteLine("\n--- Ostatnia diagnoza harmonogramu ---");
+            foreach (var line in errorLog.Distinct())
+                Console.WriteLine("!!!  " + line);
+
+            Console.WriteLine($"Fitness końcowy: {fitness:0.#####}");
+            Console.WriteLine();*/
+
+            return fitness;
         }
+
 
         private static void Mutate(Chromosome chrom, List<Employee> employees, Random rng)
         {
@@ -260,5 +344,120 @@ namespace ShiftSchedulerMVC.Services
 
             return population;
         }
+
+        private static List<string> EvaluateFitnessWithErrors(Chromosome chrom, Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements, int workingHours)
+        {
+            double penalty = 0;
+            var employeeHours = new Dictionary<int, int>();
+            var dailyAssignments = new Dictionary<(int, DateTime), int>();
+            var shiftHistory = new Dictionary<int, List<(DateTime, ShiftType)>>();
+
+            var log = new List<string>();
+
+            foreach (var gene in chrom.Genes)
+            {
+                if (!shiftRequirements.TryGetValue(gene.Date.Date, out var dayMap) ||
+                    !dayMap.TryGetValue(gene.Shift, out int required))
+                    continue;
+
+                int assigned = gene.AssignedEmployees.Count;
+
+                if (assigned < required)
+                {
+                    penalty += (required - assigned) * 150;
+                    log.Add($"Za mało osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
+                }
+
+                if (assigned > required)
+                {
+                    penalty += (assigned - required) * 5;
+                    log.Add($"Za dużo osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
+                }
+
+                foreach (var emp in gene.AssignedEmployees)
+                {
+                    if (!employeeHours.ContainsKey(emp.Id)) employeeHours[emp.Id] = 0;
+                    employeeHours[emp.Id] += 8;
+
+                    var key = (emp.Id, gene.Date.Date);
+                    if (!dailyAssignments.ContainsKey(key)) dailyAssignments[key] = 0;
+                    dailyAssignments[key]++;
+
+                    if (!shiftHistory.ContainsKey(emp.Id)) shiftHistory[emp.Id] = new();
+                    shiftHistory[emp.Id].Add((gene.Date, gene.Shift));
+                }
+            }
+
+            foreach (var kvp in employeeHours)
+                if (kvp.Value > workingHours)
+                {
+                    penalty += (kvp.Value - workingHours) * 2;
+                    log.Add($"Pracownik {kvp.Key} przekroczył limit godzin ({kvp.Value}h)");
+                }
+
+            foreach (var kvp in dailyAssignments)
+                if (kvp.Value > 1)
+                {
+                    penalty += (kvp.Value - 1) * 15;
+                    log.Add($"Pracownik {kvp.Key.Item1} ma więcej niż jedną zmianę w dniu {kvp.Key.Item2:yyyy-MM-dd}");
+                }
+
+            foreach (var kvp in shiftHistory)
+            {
+                var shifts = kvp.Value.OrderBy(s => s.Item1).ToList();
+                for (int i = 1; i < shifts.Count; i++)
+                {
+                    var prevEnd = GetShiftEnd(shifts[i - 1].Item1, shifts[i - 1].Item2);
+                    var currStart = GetShiftStart(shifts[i].Item1, shifts[i].Item2);
+                    var rest = (currStart - prevEnd).TotalHours;
+                    if (rest < 12)
+                    {
+                        penalty += 20;
+                        log.Add($"Pracownik {kvp.Key} miał za krótką przerwę ({rest:0.##}h) między zmianami");
+                    }
+                }
+
+                var shiftPeriods = shifts.Select(s =>
+                {
+                    DateTime start = GetShiftStart(s.Item1, s.Item2);
+                    DateTime end = GetShiftEnd(s.Item1, s.Item2);
+                    return (Start: start, End: end);
+                }).OrderBy(p => p.Start).ToList();
+
+                DateTime weekStart = shiftPeriods.First().Start.Date;
+                DateTime weekEnd = weekStart.AddDays(7);
+
+                while (weekStart <= shiftPeriods.Last().End)
+                {
+                    double maxBreak = 0;
+                    for (int i = 1; i < shiftPeriods.Count; i++)
+                    {
+                        if (shiftPeriods[i].Start < weekStart || shiftPeriods[i].Start > weekEnd) continue;
+
+                        var previous = shiftPeriods[i - 1];
+                        var current = shiftPeriods[i];
+
+                        double breakHours = (current.Start - previous.End).TotalHours;
+                        if (breakHours > maxBreak)
+                            maxBreak = breakHours;
+                    }
+
+                    if (maxBreak < 35)
+                    {
+                        penalty += 100;
+                        log.Add($"Pracownik {kvp.Key} nie miał 35h odpoczynku tygodniowego w tygodniu od {weekStart:yyyy-MM-dd}");
+                    }
+
+                    weekStart = weekStart.AddDays(7);
+                    weekEnd = weekStart.AddDays(7);
+                }
+            }
+
+            log.Insert(0, $"Fitness końcowy: {(1.0 / (1.0 + penalty)):0.#####}");
+            log.Insert(1, "--- Diagnoza ---");
+
+            return log;
+        }
+
     }
 }
