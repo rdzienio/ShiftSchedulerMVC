@@ -12,7 +12,7 @@ namespace ShiftSchedulerMVC.Services
     Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements,
     int workingHoursReq)
         {
-            int generations = 150;
+            int generations = 200;
             int populationSize = 600;
             double crossoverRate = 0.9;
             double mutationRate = 0.5;
@@ -125,9 +125,15 @@ namespace ShiftSchedulerMVC.Services
                 if (kvp.Value > workingHours)
                 {
                     penalty += (kvp.Value - workingHours) * 2;
-                    //errorLog.Add($"Pracownik {kvp.Key} przekroczył limit godzin ({kvp.Value}h)");
+                }
+                else
+                {
+                    // Nagroda za zbliżenie się do limitu bez przekroczenia
+                    double deficit = workingHours - kvp.Value;
+                    penalty += deficit * 0.2;
                 }
             }
+
 
             foreach (var kvp in dailyAssignments)
             {
@@ -278,22 +284,57 @@ namespace ShiftSchedulerMVC.Services
 
         private static void Repair(Chromosome chrom, Dictionary<DateTime, Dictionary<ShiftType, int>> requirements, List<Employee> employees)
         {
+            var rng = new Random();
+            var employeeHours = employees.ToDictionary(e => e.Id, _ => 0);
+            var dailyAssignments = new HashSet<(int EmpId, DateTime Date)>();
+
+            // Zlicz aktualne przydziały (na podstawie chrom)
+            foreach (var gene in chrom.Genes)
+            {
+                foreach (var emp in gene.AssignedEmployees)
+                {
+                    employeeHours[emp.Id] += 8;
+                    dailyAssignments.Add((emp.Id, gene.Date.Date));
+                }
+            }
+
             foreach (var gene in chrom.Genes)
             {
                 if (!requirements.TryGetValue(gene.Date.Date, out var map) ||
                     !map.TryGetValue(gene.Shift, out int required))
                     continue;
 
-                while (gene.AssignedEmployees.Count < required)
+                // Usuń nadmiar
+                if (gene.AssignedEmployees.Count > required)
                 {
-                    var emp = employees[new Random().Next(employees.Count)];
-                    gene.AssignedEmployees.Add(emp);
+                    gene.AssignedEmployees = gene.AssignedEmployees
+                        .OrderBy(_ => rng.Next()) // losowo, można zmienić na inny priorytet
+                        .Take(required)
+                        .ToList();
                 }
 
-                if (gene.AssignedEmployees.Count > required)
-                    gene.AssignedEmployees = gene.AssignedEmployees.Take(required).ToList();
+                // Uzupełnij do wymaganej liczby
+                while (gene.AssignedEmployees.Count < required)
+                {
+                    var shuffled = employees.OrderBy(_ => rng.Next()).ToList();
+                    foreach (var emp in shuffled)
+                    {
+                        if (employeeHours[emp.Id] + 8 > workingHours) continue;
+                        if (dailyAssignments.Contains((emp.Id, gene.Date.Date))) continue;
+
+                        gene.AssignedEmployees.Add(emp);
+                        employeeHours[emp.Id] += 8;
+                        dailyAssignments.Add((emp.Id, gene.Date.Date));
+                        break;
+                    }
+
+                    // Jeśli nie udało się znaleźć nikogo – przerwij
+                    if (gene.AssignedEmployees.Count < required)
+                        break;
+                }
             }
         }
+
 
         private static DateTime GetShiftStart(DateTime date, ShiftType shift)
         {
@@ -317,13 +358,21 @@ namespace ShiftSchedulerMVC.Services
             };
         }
 
-        private static List<Chromosome> SmartInitialPopulation(int populationSize, List<DateTime> dates, List<Employee> employees, Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements, Random rng)
+        private static List<Chromosome> SmartInitialPopulation(
+            int populationSize,
+            List<DateTime> dates,
+            List<Employee> employees,
+            Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements,
+            Random rng)
         {
             var population = new List<Chromosome>();
 
             for (int p = 0; p < populationSize; p++)
             {
                 var chrom = new Chromosome();
+                var employeeHours = employees.ToDictionary(e => e.Id, e => 0);
+                var dailyAssignments = new HashSet<(int EmpId, DateTime Date)>();
+
                 foreach (var date in dates)
                 {
                     foreach (ShiftType shift in Enum.GetValues(typeof(ShiftType)))
@@ -332,7 +381,22 @@ namespace ShiftSchedulerMVC.Services
                         if (shiftRequirements.TryGetValue(date, out var dayReqs) &&
                             dayReqs.TryGetValue(shift, out var requiredCount))
                         {
-                            gene.AssignedEmployees = employees.OrderBy(_ => rng.Next()).Take(requiredCount).ToList();
+                            int attempts = 0;
+                            while (gene.AssignedEmployees.Count < requiredCount && attempts < 100)
+                            {
+                                var emp = employees[rng.Next(employees.Count)];
+                                var key = (emp.Id, date.Date);
+
+                                if (employeeHours[emp.Id] + 8 <= workingHours &&
+                                    !dailyAssignments.Contains(key))
+                                {
+                                    gene.AssignedEmployees.Add(emp);
+                                    employeeHours[emp.Id] += 8;
+                                    dailyAssignments.Add(key);
+                                }
+
+                                attempts++;
+                            }
                         }
 
                         chrom.Genes.Add(gene);
@@ -345,9 +409,12 @@ namespace ShiftSchedulerMVC.Services
             return population;
         }
 
+
         private static List<string> EvaluateFitnessWithErrors(Chromosome chrom, Dictionary<DateTime, Dictionary<ShiftType, int>> shiftRequirements, int workingHours)
         {
             double penalty = 0;
+            double reward = 0;
+
             var employeeHours = new Dictionary<int, int>();
             var dailyAssignments = new Dictionary<(int, DateTime), int>();
             var shiftHistory = new Dictionary<int, List<(DateTime, ShiftType)>>();
@@ -365,13 +432,7 @@ namespace ShiftSchedulerMVC.Services
                 if (assigned < required)
                 {
                     penalty += (required - assigned) * 150;
-                    log.Add($"Za mało osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
-                }
-
-                if (assigned > required)
-                {
-                    penalty += (assigned - required) * 5;
-                    log.Add($"Za dużo osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
+                    log.Add($"KARA: Za mało osób na zmianie {gene.Date:yyyy-MM-dd} [{gene.Shift}]");
                 }
 
                 foreach (var emp in gene.AssignedEmployees)
@@ -389,18 +450,29 @@ namespace ShiftSchedulerMVC.Services
             }
 
             foreach (var kvp in employeeHours)
+            {
                 if (kvp.Value > workingHours)
                 {
                     penalty += (kvp.Value - workingHours) * 2;
                     log.Add($"Pracownik {kvp.Key} przekroczył limit godzin ({kvp.Value}h)");
                 }
+                else
+                {
+                    // Nagroda za zbliżenie się do limitu bez przekroczenia
+                    double deficit = workingHours - kvp.Value;
+                    penalty += deficit * 0.5; // <== możesz zmieniać wagę (np. 0.2 – łagodnie, 1.0 – ostro)
+                    log.Add($"Pracownik {kvp.Key} nie spełnił limitu godzin ({kvp.Value}h)");
+                }
+            }
 
             foreach (var kvp in dailyAssignments)
+            {
                 if (kvp.Value > 1)
                 {
                     penalty += (kvp.Value - 1) * 15;
-                    log.Add($"Pracownik {kvp.Key.Item1} ma więcej niż jedną zmianę w dniu {kvp.Key.Item2:yyyy-MM-dd}");
+                    log.Add($"KARA: Pracownik {kvp.Key.Item1} ma więcej niż jedną zmianę w dniu {kvp.Key.Item2:yyyy-MM-dd}");
                 }
+            }
 
             foreach (var kvp in shiftHistory)
             {
@@ -413,7 +485,7 @@ namespace ShiftSchedulerMVC.Services
                     if (rest < 12)
                     {
                         penalty += 20;
-                        log.Add($"Pracownik {kvp.Key} miał za krótką przerwę ({rest:0.##}h) między zmianami");
+                        log.Add($"KARA: Pracownik {kvp.Key} miał za krótką przerwę ({rest:0.##}h) między zmianami");
                     }
                 }
 
@@ -445,7 +517,7 @@ namespace ShiftSchedulerMVC.Services
                     if (maxBreak < 35)
                     {
                         penalty += 100;
-                        log.Add($"Pracownik {kvp.Key} nie miał 35h odpoczynku tygodniowego w tygodniu od {weekStart:yyyy-MM-dd}");
+                        log.Add($"KARA: Pracownik {kvp.Key} nie miał 35h odpoczynku tygodniowego (tydzień od {weekStart:yyyy-MM-dd})");
                     }
 
                     weekStart = weekStart.AddDays(7);
@@ -453,10 +525,31 @@ namespace ShiftSchedulerMVC.Services
                 }
             }
 
-            log.Insert(0, $"Fitness końcowy: {(1.0 / (1.0 + penalty)):0.#####}");
-            log.Insert(1, "--- Diagnoza ---");
+
+            double fitness = (1.0 + reward) / (1.0 + penalty);
+
+            log.Insert(0, $"Fitness końcowy: {fitness:0.#####}");
+            log.Insert(2, "--- Diagnoza ---");
 
             return log;
+        }
+
+
+
+        private static double GetDayWeight(DateTime date, DateTime periodEnd)
+        {
+            double weight = 1.0;
+
+            // 🟠 Weekend ma większą wagę
+            if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                weight += 0.5;
+
+            // 🔴 Końcówka miesiąca = +1.0
+            int daysToEnd = (periodEnd - date).Days;
+            if (daysToEnd <= 3)
+                weight += 1.0;
+
+            return weight;
         }
 
     }
