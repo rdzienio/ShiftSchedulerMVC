@@ -1,0 +1,90 @@
+﻿@model List<ShiftSchedulerMVC.Models.UserViewModel>
+@{
+    ViewData["Title"] = "Panel administratora";
+    var availableRoles = ViewBag.AvailableRoles as List<string> ?? new List<string>();
+    var selectedRole = ViewBag.RoleFilter as string ?? "";
+}
+
+
+<h2>Użytkownicy</h2>
+
+<a asp-action="Create" class="btn btn-success">Dodaj użytkownika</a>
+
+<form method="get" class="mb-3 d-flex gap-2">
+    <input type="text" name="nameFilter" class="form-control" placeholder="Filtruj po nazwie lub emailu" value="@ViewBag.NameFilter" />
+    <select name="roleFilter" class="form-select">
+    <option value="">-- Wszystkie role --</option>
+    @foreach (var role in availableRoles)
+    {
+        <text>
+                @if (role == selectedRole)
+                {
+                <option value="@role" selected>@role</option>
+                }
+                else
+                {
+                <option value="@role">@role</option>
+                }
+
+        </text>
+    }
+</select>
+
+    <button type="submit" class="btn btn-primary">Filtruj</button>
+</form>
+
+
+<form method="get" class="row mb-4">
+    <div class="col-md-3">
+        <input type="text" name="name" class="form-control" placeholder="Imię i nazwisko"
+               value="@ViewBag.SearchName" />
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="position" class="form-control" placeholder="Stanowisko"
+               value="@ViewBag.SearchPosition" />
+    </div>
+    <div class="col-md-3">
+        <select name="role" class="form-select">
+            <option value="">Wszystkie role</option>
+            @foreach (var role in ViewBag.Roles as List<string>)
+            {
+                <option value="@role" selected="@(role == (string)ViewBag.SelectedRole)">
+                    @role
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Filtruj</button>
+    </div>
+</form>
+
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Imię i nazwisko</th>
+            <th>Stanowisko</th>
+            <th>Role</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>@user.FullName</td>
+                <td>@user.Position</td>
+                <td>@string.Join(", ", user.Roles)</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary me-1">Edytuj</a>
+                    <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć tego użytkownika?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Usuń</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
