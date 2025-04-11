@@ -15,7 +15,7 @@
     <table class="table table-bordered table-striped align-middle">
         <thead>
             <tr>
-                <th>
+                <th colspan="2">
                     <input type="text" name="nameFilter" class="form-control" placeholder="Imię/Nazwisko/Email" value="@nameFilter" />
                 </th>
                 <th>
@@ -39,6 +39,7 @@
             <tr>
                 <th>Email</th>
                 <th>Imię i nazwisko</th>
+                <th>Stanowisko</th>
                 <th>Role</th>
                 <th>Akcje</th>
             </tr>
@@ -49,6 +50,7 @@
                 <tr>
                     <td>@user.Email</td>
                     <td>@user.FullName</td>
+                    <td>@user.Position</td>
                     <td>@string.Join(", ", user.Roles)</td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary me-1">Edytuj</a>
