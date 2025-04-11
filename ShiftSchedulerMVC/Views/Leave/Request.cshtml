@@ -1,0 +1,38 @@
+﻿@model ShiftSchedulerMVC.Models.LeaveRequestViewModel
+@{
+    ViewData["Title"] = "Wniosek urlopowy";
+}
+
+<h2>Zgłoś dni wolne</h2>
+
+<form asp-action="Request" method="post">
+    <div class="mb-3">
+        <label for="LeaveDates">Wybierz dni urlopu:</label>
+        <input asp-for="LeaveDates" type="text" class="form-control" id="leavePicker" placeholder="Wybierz dni" readonly />
+        <span asp-validation-for="LeaveDates" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Reason">Powód (opcjonalnie)</label>
+        <textarea asp-for="Reason" class="form-control" rows="3"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Wyślij wniosek</button>
+</form>
+
+@section Scripts {
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <script>
+        const takenDates = @Html.Raw(Json.Serialize(ViewBag.TakenDates ?? new List<string>()));
+
+        flatpickr("#leavePicker", {
+            mode: "multiple",
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            disable: takenDates
+        });
+    </script>
+
+}

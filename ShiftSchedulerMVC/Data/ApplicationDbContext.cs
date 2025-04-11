@@ -11,6 +11,7 @@ namespace ShiftSchedulerMVC.Data
         {
         }
 
+        public DbSet<LeaveRequest> LeaveRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

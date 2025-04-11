@@ -1,0 +1,45 @@
+﻿@model List<ShiftSchedulerMVC.Models.LeaveRequest>
+
+@{
+    ViewData["Title"] = "Moje wnioski urlopowe";
+}
+
+<h2>Moje wnioski urlopowe</h2>
+
+<p>
+    <a asp-action="Request" class="btn btn-primary">Złóż nowy wniosek</a>
+</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Powód</th>
+            <th>Status</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.OrderBy(r => r.Date))
+        {
+            <tr>
+                <td>@item.Date.ToString("yyyy-MM-dd")</td>
+                <td>@item.Reason</td>
+                <td>@item.Status</td>
+                <td>
+                    @if (item.Status == LeaveStatus.Pending)
+                    {
+                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć ten wniosek?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Usuń</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
