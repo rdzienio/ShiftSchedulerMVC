@@ -25,7 +25,7 @@ namespace ShiftSchedulerMVC.Controllers
             return View(users);
         }*/
 
-        public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null)
+        /*public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null)
         {
             var users = await _userManager.Users.ToListAsync();
             var model = new List<UserViewModel>();
@@ -58,6 +58,34 @@ namespace ShiftSchedulerMVC.Controllers
             ViewBag.AvailableRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
             ViewBag.RoleFilter = roleFilter;
             ViewBag.NameFilter = nameFilter;
+
+            return View(model);
+        }*/
+
+        public async Task<IActionResult> Index(string roleFilter = null)
+        {
+            var users = await _userManager.Users.ToListAsync();
+            var model = new List<UserViewModel>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                if (string.IsNullOrEmpty(roleFilter) || roles.Contains(roleFilter))
+                {
+                    model.Add(new UserViewModel
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        Position = user.Position,
+                        Roles = roles.ToList()
+                    });
+                }
+            }
+
+            ViewBag.AvailableRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
+            ViewBag.RoleFilter = roleFilter;
 
             return View(model);
         }

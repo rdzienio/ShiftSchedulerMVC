@@ -10,53 +10,23 @@
 
 <a asp-action="Create" class="btn btn-success">Dodaj użytkownika</a>
 
-<form method="get" class="mb-3 d-flex gap-2">
-    <input type="text" name="nameFilter" class="form-control" placeholder="Filtruj po nazwie lub emailu" value="@ViewBag.NameFilter" />
-    <select name="roleFilter" class="form-select">
-    <option value="">-- Wszystkie role --</option>
-    @foreach (var role in availableRoles)
-    {
-        <text>
-                @if (role == selectedRole)
-                {
-                <option value="@role" selected>@role</option>
-                }
-                else
-                {
-                <option value="@role">@role</option>
-                }
 
-        </text>
-    }
-</select>
-
-    <button type="submit" class="btn btn-primary">Filtruj</button>
-</form>
-
-
-<form method="get" class="row mb-4">
-    <div class="col-md-3">
-        <input type="text" name="name" class="form-control" placeholder="Imię i nazwisko"
-               value="@ViewBag.SearchName" />
-    </div>
-    <div class="col-md-3">
-        <input type="text" name="position" class="form-control" placeholder="Stanowisko"
-               value="@ViewBag.SearchPosition" />
-    </div>
-    <div class="col-md-3">
-        <select name="role" class="form-select">
-            <option value="">Wszystkie role</option>
-            @foreach (var role in ViewBag.Roles as List<string>)
+<form method="get" asp-controller="Admin" asp-action="Index" class="mb-3">
+    <label for="roleFilter">Filtruj po roli:</label>
+    <select id="roleFilter" name="roleFilter" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
+        <option value="">Wszystkie</option>
+        @foreach (var role in availableRoles)
+        {
+            @if (role == selectedRole)
             {
-                <option value="@role" selected="@(role == (string)ViewBag.SelectedRole)">
-                    @role
-                </option>
+                <option value="@role" selected>@role</option>
             }
-        </select>
-    </div>
-    <div class="col-md-3">
-        <button type="submit" class="btn btn-primary w-100">Filtruj</button>
-    </div>
+            else
+            {
+                <option value="@role">@role</option>
+            }
+        }
+    </select>
 </form>
 
 
