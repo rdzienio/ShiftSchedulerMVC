@@ -4,14 +4,14 @@ namespace ShiftSchedulerMVC.Services
 {
     public static class DummyData
     {
-        public static List<Employee> GetEmployees()
+        /*public static List<Employee> GetEmployees()
         {
             return Enumerable.Range(1, 9).Select(i => new Employee
             {
                 Id = i,
                 Name = $"Employee {i}"
             }).ToList();
-        }
+        }*/
 
         public static List<DateTime> GetDates()
         {
