@@ -25,14 +25,15 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
-        const takenDates = @Html.Raw(Json.Serialize(ViewBag.TakenDates ?? new List<string>()));
+        const disabledDates = @Html.Raw(Json.Serialize(ViewBag.DisabledDates ?? new List<string>()));
 
         flatpickr("#leavePicker", {
             mode: "multiple",
             dateFormat: "Y-m-d",
             minDate: "today",
-            disable: takenDates
+            disable: disabledDates
         });
     </script>
+
 
 }

@@ -18,6 +18,9 @@ namespace ShiftSchedulerMVC.Models
 
         public string Position { get; set; }
 
+        public string ManagerId { get; set; }
+
+
         [Required]
         public string Role { get; set; }
     }

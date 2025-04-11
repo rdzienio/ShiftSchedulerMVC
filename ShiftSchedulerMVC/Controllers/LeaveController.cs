@@ -34,14 +34,16 @@ namespace ShiftSchedulerMVC.Controllers
         public async Task<IActionResult> Request()
         {
             var user = await _userManager.GetUserAsync(User);
-            var existingDates = await _context.LeaveRequests
-                .Where(l => l.EmployeeId == user.Id)
-                .Select(l => l.Date)
+            var existing = await _context.LeaveRequests
+                .Where(r => r.EmployeeId == user.Id && r.Status != LeaveStatus.Rejected)
+                .Select(r => r.Date)
                 .ToListAsync();
 
-            ViewBag.TakenDates = existingDates.Select(d => d.ToString("yyyy-MM-dd")).ToList();
+            ViewBag.DisabledDates = existing.Select(d => d.ToString("yyyy-MM-dd")).ToList();
+
             return View();
         }
+
 
 
         [HttpPost]
@@ -54,17 +56,21 @@ namespace ShiftSchedulerMVC.Controllers
             var dateList = model.LeaveDates
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(d => DateTime.Parse(d))
-                .Distinct()
                 .ToList();
 
             var existingDates = await _context.LeaveRequests
-                .Where(l => l.EmployeeId == user.Id)
-                .Select(l => l.Date)
+                .Where(r => r.EmployeeId == user.Id && r.Status != LeaveStatus.Rejected)
+                .Select(r => r.Date)
                 .ToListAsync();
 
-            var newDates = dateList.Except(existingDates).ToList();
+            var duplicates = dateList.Intersect(existingDates).ToList();
+            if (duplicates.Any())
+            {
+                ModelState.AddModelError("", "Masz już złożony wniosek na niektóre z tych dni.");
+                return View(model);
+            }
 
-            foreach (var date in newDates)
+            foreach (var date in dateList)
             {
                 var request = new LeaveRequest
                 {
@@ -77,7 +83,6 @@ namespace ShiftSchedulerMVC.Controllers
             }
 
             await _context.SaveChangesAsync();
-            TempData["Success"] = "Wniosek urlopowy został wysłany.";
             return RedirectToAction("MyRequests");
         }
 

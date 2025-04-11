@@ -43,5 +43,13 @@
         </select>
     </div>
 
+    <div class="form-group">
+        <label for="ManagerId">Menedżer</label>
+        <select asp-for="ManagerId" class="form-control" asp-items="ViewBag.Managers">
+            <option value="">-- Brak --</option>
+        </select>
+    </div>
+
+
     <button type="submit" class="btn btn-primary mt-2">Zapisz zmiany</button>
 </form>

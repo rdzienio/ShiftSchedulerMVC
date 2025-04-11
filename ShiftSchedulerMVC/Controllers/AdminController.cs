@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ShiftSchedulerMVC.Models;
 //using ShiftSchedulerMVC.ViewModels;
@@ -18,49 +19,6 @@ namespace ShiftSchedulerMVC.Controllers
             _userManager = userManager;
             _roleManager = roleManager;
         }
-
-        /*public IActionResult Index()
-        {
-            var users = _userManager.Users.ToList();
-            return View(users);
-        }*/
-
-        /*public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null)
-        {
-            var users = await _userManager.Users.ToListAsync();
-            var model = new List<UserViewModel>();
-
-            foreach (var user in users)
-            {
-                var roles = await _userManager.GetRolesAsync(user);
-
-                // Filtr po roli i nazwie
-                bool matchRole = string.IsNullOrEmpty(roleFilter) || roles.Contains(roleFilter);
-                bool matchName = string.IsNullOrEmpty(nameFilter) ||
-                                 user.FirstName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase) ||
-                                 user.LastName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase) ||
-                                 user.Email.Contains(nameFilter, StringComparison.OrdinalIgnoreCase);
-
-                if (matchRole && matchName)
-                {
-                    model.Add(new UserViewModel
-                    {
-                        Id = user.Id,
-                        Email = user.Email,
-                        FirstName = user.FirstName,
-                        LastName = user.LastName,
-                        Position = user.Position,
-                        Roles = roles.ToList()
-                    });
-                }
-            }
-
-            ViewBag.AvailableRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
-            ViewBag.RoleFilter = roleFilter;
-            ViewBag.NameFilter = nameFilter;
-
-            return View(model);
-        }*/
 
         public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null, string positionFilter = null)
         {
@@ -159,10 +117,15 @@ namespace ShiftSchedulerMVC.Controllers
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Position = user.Position,
-                Role = currentRoles.FirstOrDefault()
+                Role = currentRoles.FirstOrDefault(),
+                ManagerId = user.ManagerId
             };
 
             ViewBag.Roles = _roleManager.Roles.Select(r => r.Name).ToList();
+            ViewBag.Managers = new SelectList(
+                await _userManager.GetUsersInRoleAsync("Manager"),
+                    "Id", "FullName"
+);
             return View(model);
         }
 
@@ -183,6 +146,7 @@ namespace ShiftSchedulerMVC.Controllers
             user.FirstName = model.FirstName;
             user.LastName = model.LastName;
             user.Position = model.Position;
+            user.ManagerId = model.ManagerId;
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)

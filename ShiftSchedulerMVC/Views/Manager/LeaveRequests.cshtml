@@ -1,0 +1,46 @@
+﻿@model List<ShiftSchedulerMVC.Models.LeaveRequest>
+@{
+    ViewData["Title"] = "Wnioski urlopowe";
+}
+
+<h2>Wnioski urlopowe od pracowników</h2>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Pracownik</th>
+            <th>Stanowisko</th>
+            <th>Powód</th>
+            <th>Status</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var req in Model)
+        {
+            <tr>
+                <td>@req.Date.ToString("yyyy-MM-dd")</td>
+                <td>@(req.Employee?.FirstName) @(req.Employee?.LastName)</td>
+                <td>@req.Employee?.Position</td>
+                <td>@req.Reason</td>
+                <td>@req.Status</td>
+                <td>
+                    @if (req.Status == LeaveStatus.Pending)
+                    {
+                        <form method="post" asp-action="Approve" asp-route-id="@req.Id" class="d-inline">
+                            <button class="btn btn-sm btn-success">Zatwierdź</button>
+                        </form>
+                        <form method="post" asp-action="Reject" asp-route-id="@req.Id" class="d-inline" onsubmit="return confirm('Odrzucić wniosek?');">
+                            <button class="btn btn-sm btn-danger">Odrzuć</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Brak akcji</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

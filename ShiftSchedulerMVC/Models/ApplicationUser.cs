@@ -17,6 +17,9 @@ namespace ShiftSchedulerMVC.Models
 
         public string? ManagerId { get; set; }
 
+        public string FullName => $"{FirstName} {LastName}";
+
+
         [ForeignKey("ManagerId")]
         public virtual ApplicationUser? Manager { get; set; }
     }
