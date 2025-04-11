@@ -62,7 +62,7 @@ namespace ShiftSchedulerMVC.Controllers
             return View(model);
         }*/
 
-        public async Task<IActionResult> Index(string roleFilter = null)
+        public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null, string positionFilter = null)
         {
             var users = await _userManager.Users.ToListAsync();
             var model = new List<UserViewModel>();
@@ -70,7 +70,16 @@ namespace ShiftSchedulerMVC.Controllers
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                if (string.IsNullOrEmpty(roleFilter) || roles.Contains(roleFilter))
+                var matchesRole = string.IsNullOrEmpty(roleFilter) || roles.Contains(roleFilter);
+                var matchesName = string.IsNullOrEmpty(nameFilter) ||
+                                  user.FirstName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase) ||
+                                  user.LastName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase) ||
+                                  user.Email.Contains(nameFilter, StringComparison.OrdinalIgnoreCase);
+
+                var matchesPosition = string.IsNullOrEmpty(positionFilter) ||
+                                      (user.Position?.Contains(positionFilter, StringComparison.OrdinalIgnoreCase) ?? false);
+
+                if (matchesRole && matchesName && matchesPosition)
                 {
                     model.Add(new UserViewModel
                     {
@@ -86,9 +95,12 @@ namespace ShiftSchedulerMVC.Controllers
 
             ViewBag.AvailableRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
             ViewBag.RoleFilter = roleFilter;
+            ViewBag.NameFilter = nameFilter;
+            ViewBag.PositionFilter = positionFilter;
 
             return View(model);
         }
+
 
 
 
