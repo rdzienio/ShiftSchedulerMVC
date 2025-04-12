@@ -15,6 +15,11 @@
         .OrderBy(d => d)
         .ToList();
 
+    var hours = ViewBag.EmployeeHours as Dictionary<string, int> ?? new();
+    var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
+
+
+
     Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
         shift == ShiftType.Morning ? ("1", "lightgreen") :
         shift == ShiftType.Afternoon ? ("2", "khaki") :
@@ -43,6 +48,7 @@
                 var headerClass = isWeekend(date) ? "weekend-header" : "";
                 <th class="@headerClass">@date.ToString("dd.MM")</th>
             }
+            <th>Łącznie godzin</th>
         </tr>
     </thead>
     <tbody>
@@ -55,8 +61,14 @@
                     var gene = Model.Genes
                     .FirstOrDefault(g => g.Date.Date == date && g.AssignedEmployees.Any(e => e.Id == emp.Id));
                     var (code, color) = gene != null ? shiftInfo(gene.Shift) : ("", "white");
-                    <td style="background-color:@color">@code</td>
+                    var empKey = (emp.Id, date);
+                    var isOnLeave = leaveDays.Contains(empKey);
+
+                    var finalColor = isOnLeave ? "hotpink" : color;
+
+                    <td style="background-color:@finalColor">@code</td>
                 }
+                <td>@(hours.ContainsKey(emp.Id) ? hours[emp.Id] : 0)</td>
             </tr>
         }
     </tbody>
@@ -67,4 +79,5 @@
     <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
     <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
     <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna
+    <span style="background-color:hotpink;padding:2px 6px;">&nbsp;</span> urlop
 </p>

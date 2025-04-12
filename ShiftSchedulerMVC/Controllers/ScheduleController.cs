@@ -34,6 +34,7 @@ namespace ShiftSchedulerMVC.Controllers
                 .ToListAsync();
 
 
+
             var shiftRequirements = new Dictionary<DateTime, Dictionary<ShiftType, int>>();
 
             foreach (var date in dates)
@@ -80,6 +81,37 @@ namespace ShiftSchedulerMVC.Controllers
 
             var result = GeneticScheduler.Run(employees, dates, shiftRequirements, input.WorkingHours, vacationDays);
 
+            var employeeHours = result.Genes
+                .SelectMany(g => g.AssignedEmployees.Select(e => e.Id))
+                .GroupBy(id => id)
+                .ToDictionary(g => g.Key, g => g.Count() * 8);
+            var leaveInRange = _context.LeaveRequests
+            .Where(r => r.Status == LeaveStatus.Approved &&
+                r.Date >= input.StartDate &&
+                r.Date <= input.EndDate)
+            .ToList();
+
+            foreach (var leave in leaveInRange)
+            {
+                if (!employeeHours.ContainsKey(leave.EmployeeId))
+                    employeeHours[leave.EmployeeId] = 0;
+
+                employeeHours[leave.EmployeeId] += 8;
+            }
+
+            var leaveDays = _context.LeaveRequests
+    .Where(r => r.Status == LeaveStatus.Approved &&
+                r.Date >= input.StartDate &&
+                r.Date <= input.EndDate)
+    .ToList() // 👈 najpierw pobieramy z bazy
+    .Select(r => (r.EmployeeId, r.Date.Date)) // 👈 teraz możemy zrobić krotkę
+    .ToHashSet();
+
+
+            ViewBag.LeaveDays = leaveDays;
+
+
+            ViewBag.EmployeeHours = employeeHours;
             return View("Result", result);
         }
 
