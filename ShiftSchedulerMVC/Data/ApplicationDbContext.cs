@@ -15,6 +15,10 @@ namespace ShiftSchedulerMVC.Data
 
         public DbSet<HolidayOverride> HolidayOverrides { get; set; }
 
+        public DbSet<FinalizedSchedule> FinalizedSchedules { get; set; }
+
+        public DbSet<DraftSchedule> DraftSchedules { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -26,6 +30,13 @@ namespace ShiftSchedulerMVC.Data
                 .WithOne(e => e.Manager)
                 .HasForeignKey(e => e.ManagerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<DraftSchedule>()
+                .HasOne(d => d.Employee)
+                .WithMany()
+                .HasForeignKey(d => d.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
         }
     }
 }

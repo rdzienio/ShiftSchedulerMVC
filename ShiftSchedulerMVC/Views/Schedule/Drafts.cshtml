@@ -1,0 +1,76 @@
+﻿@model Dictionary<string, List<ShiftSchedulerMVC.Models.DraftSchedule>>
+@{
+    ViewData["Title"] = "Szkic harmonogramu";
+    var employees = ViewBag.Employees as Dictionary<string, string>;
+    var allDates = ViewBag.Dates as List<DateTime>;
+    var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
+
+    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
+        shift == ShiftType.Morning ? ("1", "lightgreen") :
+        shift == ShiftType.Afternoon ? ("2", "khaki") :
+        shift == ShiftType.Night ? ("3", "lightblue") :
+        ("", "white");
+
+    Func<DateTime, bool> isWeekend = date =>
+        date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+}
+
+<style>
+    .weekend-header {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+
+<h2>Szkic harmonogramu</h2>
+
+<form asp-action="ConfirmDrafts" method="post">
+    <table class="table table-bordered text-center">
+        <thead>
+            <tr>
+                <th>Pracownik</th>
+                @foreach (var date in allDates)
+                {
+                    var headerClass = isWeekend(date) ? "weekend-header" : "";
+                    <th class="@headerClass">@date.ToString("dd.MM")</th>
+                }
+                <th>Łącznie godzin</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var kvp in Model)
+            {
+                var empId = kvp.Key;
+                var name = employees.ContainsKey(empId) ? employees[empId] : empId;
+                var shifts = kvp.Value;
+
+                var shiftHours = shifts.Count * 8;
+                var leaveHours = leaveDays.Count(x => x.Item1 == empId && allDates.Contains(x.Item2)) * 8;
+                var totalHours = shiftHours + leaveHours;
+                <tr>
+                    <td>@name</td>
+                    @foreach (var date in allDates)
+                    {
+                        var key = (empId, date);
+                        var entry = shifts.FirstOrDefault(s => s.Date.Date == date);
+                        var (code, color) = entry != null ? shiftInfo(entry.Shift) : ("", "white");
+
+                        var finalColor = leaveDays.Contains(key) ? "hotpink" : color;
+
+                        <td style="background-color:@finalColor">@code</td>
+                    }
+                    <td>@totalHours</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-success mt-3" type="submit">Zatwierdź szkic</button>
+</form>
+<p>
+    <strong>Legenda:</strong>
+    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
+    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
+    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna
+    <span style="background-color:hotpink;padding:2px 6px;">&nbsp;</span> urlop
+</p>
