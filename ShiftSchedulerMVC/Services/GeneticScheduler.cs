@@ -7,6 +7,8 @@ namespace ShiftSchedulerMVC.Services
     public static class GeneticScheduler
     {
         private static int workingHours = 176;
+        private static int countMutate = 0;
+        private static int countCrossover = 0;
         public static Chromosome Run(
         List<Employee> employees,
         List<DateTime> dates,
@@ -17,19 +19,11 @@ namespace ShiftSchedulerMVC.Services
             int generations = 100;
             int populationSize = 500;
             double crossoverRate = 0.1;
-            double mutationRate = 0.05;
+            double mutationRate = 0.09;
             workingHours = workingHoursReq;
 
             var rng = new Random();
-            // DEBUG
-            if (shiftRequirements.TryGetValue(new DateTime(2025, 4, 25), out var shifts))
-            {
-                Console.WriteLine($"25.04 wymagania: M={shifts[ShiftType.Morning]}, A={shifts[ShiftType.Afternoon]}, N={shifts[ShiftType.Night]}");
-            }
-            else
-            {
-                Console.WriteLine("🚨 25.04 w ogóle nie istnieje w shiftRequirements!");
-            }
+
 
             var stopwatch = Stopwatch.StartNew();
             var logPath = Logger.CreateLogFile();
@@ -84,7 +78,8 @@ namespace ShiftSchedulerMVC.Services
             Logger.Append(logPath, "--- Final Best Chromosome Diagnostics ---");
             foreach (var line in errorLog)
                 Logger.Append(logPath, line);
-            Logger.Append(logPath, $"Best Chromosome{EvaluateFitness(bestChromosome, shiftRequirements, workingHours, vacationDays)}");
+            Logger.Append(logPath, $"Best Chromosome: {EvaluateFitness(bestChromosome, shiftRequirements, workingHours, vacationDays)}");
+            Console.WriteLine($"Best Chromosome: {EvaluateFitness(bestChromosome, shiftRequirements, workingHours, vacationDays)}");
             return bestChromosome;
         }
 
@@ -174,6 +169,33 @@ namespace ShiftSchedulerMVC.Services
             foreach (var kvp in shiftHistory)
             {
                 var shifts = kvp.Value.OrderBy(s => s.Item1).ToList();
+                if (shifts.Count == 0) continue;
+
+                double consecutiveHours = 0;
+                DateTime? lastEnd = null;
+
+                for (int i = 0; i < shifts.Count; i++)
+                {
+                    DateTime shiftStart = GetShiftStart(shifts[i].Item1, shifts[i].Item2);
+                    DateTime shiftEnd = GetShiftEnd(shifts[i].Item1, shifts[i].Item2);
+
+                    if (lastEnd == null || (shiftStart - lastEnd.Value).TotalHours <= 12)
+                    {
+                        consecutiveHours += (shiftEnd - shiftStart).TotalHours;
+                    }
+                    else
+                    {
+                        consecutiveHours = (shiftEnd - shiftStart).TotalHours;
+                    }
+
+                    lastEnd = shiftEnd;
+
+                    if (consecutiveHours > 40)
+                    {
+                        penalty += (consecutiveHours - 40) * 10;
+                    }
+                }
+
                 for (int i = 1; i < shifts.Count; i++)
                 {
                     var prevEnd = GetShiftEnd(shifts[i - 1].Item1, shifts[i - 1].Item2);
@@ -184,6 +206,33 @@ namespace ShiftSchedulerMVC.Services
                         penalty += 20;
                     }
                 }
+
+                // --- Maksymalnie 5 dni roboczych pod rząd ---
+                var shiftDays = kvp.Value
+                    .Select(s => s.Item1.Date)
+                    .Distinct()
+                    .OrderBy(d => d)
+                    .ToList();
+
+                int consecutiveWorkDays = 1;
+
+                for (int i = 1; i < shiftDays.Count; i++)
+                {
+                    if ((shiftDays[i] - shiftDays[i - 1]).TotalDays == 1)
+                    {
+                        consecutiveWorkDays++;
+                        if (consecutiveWorkDays > 5)
+                        {
+                            penalty += 100;
+                            break; // Możesz tu zrobić `break` lub kontynuować dalej
+                        }
+                    }
+                    else
+                    {
+                        consecutiveWorkDays = 1;
+                    }
+                }
+
 
                 var shiftPeriods = shifts.Select(s =>
                 {
@@ -256,6 +305,7 @@ namespace ShiftSchedulerMVC.Services
                     gene.AssignedEmployees[index] = employees[rng.Next(employees.Count)];
                 }
             }
+            countMutate++;
         }
 
         private static Chromosome Crossover(Chromosome p1, Chromosome p2)
@@ -273,7 +323,7 @@ namespace ShiftSchedulerMVC.Services
                     AssignedEmployees = new List<Employee>(gene.AssignedEmployees)
                 });
             }
-
+            countCrossover++;
             return child;
         }
 
@@ -318,6 +368,8 @@ namespace ShiftSchedulerMVC.Services
             var employeeHours = employees.ToDictionary(e => e.Id, _ => 0);
             var dailyAssignments = new HashSet<(string EmpId, DateTime Date)>();
             var lastShiftMap = new Dictionary<string, (DateTime date, ShiftType shift)>();
+            int repRequired = 0;
+            int repExtra = 0;
 
             // Urlopy
             foreach (var (empId, date) in vacationDays)
@@ -335,8 +387,8 @@ namespace ShiftSchedulerMVC.Services
                     //if(vacationDays.Contains(key)) employeeHours[emp.Id] += 8;
                 
 
-                // 🧹 Sprawdzenie błędnych przypisań
-                if (dailyAssignments.Contains(key) || vacationDays.Contains(key))
+                    // 🧹 Sprawdzenie błędnych przypisań
+                    if (dailyAssignments.Contains(key) || vacationDays.Contains(key))
                     {
                         gene.AssignedEmployees.Remove(emp);
                         continue;
@@ -383,6 +435,8 @@ namespace ShiftSchedulerMVC.Services
 
                     if (!available.Any()) break;
 
+                    repRequired++;
+
                     var emp = available.First();
                     gene.AssignedEmployees.Add(emp);
                     employeeHours[emp.Id] += 8;
@@ -393,23 +447,26 @@ namespace ShiftSchedulerMVC.Services
                 // Opcjonalnie nadmiarowy
                 if (gene.AssignedEmployees.Count == required)
                 {
-                    var extra = employees
+                    // Tylko jeśli wciąż mamy znaczną liczbę dostępnych ludzi
+                    var potentialExtras = employees
                         .Where(e =>
                             !vacationDays.Contains((e.Id, date)) &&
                             !dailyAssignments.Contains((e.Id, date)) &&
                             employeeHours[e.Id] + 8 <= workingHours &&
                             IsEligibleAfterPreviousShift(e.Id, gene.Date, gene.Shift, lastShiftMap))
                         .OrderBy(_ => rng.Next())
-                        .FirstOrDefault();
+                        .ToList();
 
-                    if (extra != null)
+                    if (potentialExtras.Count > 1) // np. zostaw bufor dla innych zmian
                     {
+                        var extra = potentialExtras.First();
                         gene.AssignedEmployees.Add(extra);
                         employeeHours[extra.Id] += 8;
                         dailyAssignments.Add((extra.Id, date));
                         lastShiftMap[extra.Id] = (gene.Date, gene.Shift);
                     }
                 }
+
             }
         }
 
@@ -495,23 +552,26 @@ namespace ShiftSchedulerMVC.Services
                         // Opcjonalnie dodanie 1 nadmiarowej osoby (jeśli jest zapas godzin)
                         if (gene.AssignedEmployees.Count == required)
                         {
-                            var extra = employees
+                            // Tylko jeśli wciąż mamy znaczną liczbę dostępnych ludzi
+                            var potentialExtras = employees
                                 .Where(e =>
-                                    !vacationDays.Contains((e.Id, date.Date)) &&
-                                    !dailyAssignments.Contains((e.Id, date.Date)) &&
+                                    !vacationDays.Contains((e.Id, date)) &&
+                                    !dailyAssignments.Contains((e.Id, date)) &&
                                     employeeHours[e.Id] + 8 <= workingHours &&
-                                    IsEligibleAfterPreviousShift(e.Id, date, shift, lastShiftMap))
+                                    IsEligibleAfterPreviousShift(e.Id, gene.Date, gene.Shift, lastShiftMap))
                                 .OrderBy(_ => rng.Next())
-                                .FirstOrDefault();
+                                .ToList();
 
-                            if (extra != null)
+                            if (potentialExtras.Count > 0) // np. zostaw bufor dla innych zmian
                             {
+                                var extra = potentialExtras.First();
                                 gene.AssignedEmployees.Add(extra);
                                 employeeHours[extra.Id] += 8;
-                                dailyAssignments.Add((extra.Id, date.Date));
+                                dailyAssignments.Add((extra.Id, date));
                                 lastShiftMap[extra.Id] = (date, shift);
                             }
                         }
+
                     }
                 }
 
@@ -611,6 +671,36 @@ namespace ShiftSchedulerMVC.Services
             {
                 var shifts = kvp.Value.OrderBy(s => s.Item1).ToList();
                 if (!shifts.Any()) continue;
+
+                double consecutiveHours = 0;
+                DateTime? lastEnd = null;   
+
+
+
+                for (int i = 0; i < shifts.Count; i++)
+                {
+                    DateTime shiftStart = GetShiftStart(shifts[i].Item1, shifts[i].Item2);
+                    DateTime shiftEnd = GetShiftEnd(shifts[i].Item1, shifts[i].Item2);
+
+                    if (lastEnd == null || (shiftStart - lastEnd.Value).TotalHours <= 12)
+                    {
+                        consecutiveHours += (shiftEnd - shiftStart).TotalHours;
+                    }
+                    else
+                    {
+                        consecutiveHours = (shiftEnd - shiftStart).TotalHours;
+                    }
+
+                    lastEnd = shiftEnd;
+
+                    if (consecutiveHours > 40)
+                    {
+                        penalty += (consecutiveHours - 40) * 10;
+                        if (log != null)
+                            log.Add($"KARA: Pracownik {kvp.Key} przepracował ciągiem {consecutiveHours}h bez dnia wolnego");
+                    }
+                }
+
                 for (int i = 1; i < shifts.Count; i++)
                 {
                     var prevEnd = GetShiftEnd(shifts[i - 1].Item1, shifts[i - 1].Item2);
@@ -622,6 +712,34 @@ namespace ShiftSchedulerMVC.Services
                         log.Add($"KARA: Pracownik {kvp.Key} miał za krótką przerwę ({rest:0.##}h) między zmianami");
                     }
                 }
+
+                // --- Maksymalnie 5 dni roboczych pod rząd ---
+                var shiftDays = kvp.Value
+                    .Select(s => s.Item1.Date)
+                    .Distinct()
+                    .OrderBy(d => d)
+                    .ToList();
+
+                int consecutiveWorkDays = 1;
+
+                for (int i = 1; i < shiftDays.Count; i++)
+                {
+                    if ((shiftDays[i] - shiftDays[i - 1]).TotalDays == 1)
+                    {
+                        consecutiveWorkDays++;
+                        if (consecutiveWorkDays > 5)
+                        {
+                            penalty += 100;
+                            log?.Add($"KARA: Pracownik {kvp.Key} pracował {consecutiveWorkDays} dni z rzędu bez dnia wolnego");
+                            break; // Możesz tu zrobić `break` lub kontynuować dalej
+                        }
+                    }
+                    else
+                    {
+                        consecutiveWorkDays = 1;
+                    }
+                }
+
 
                 var shiftPeriods = shifts.Select(s =>
                 {
@@ -717,6 +835,22 @@ namespace ShiftSchedulerMVC.Services
             return true;
         }
 
+        private static bool IsMaxConsecutiveHoursValid(string empId, DateTime date, ShiftType shift, Dictionary<string, (DateTime date, ShiftType shift)> lastShiftMap)
+        {
+            if (!lastShiftMap.TryGetValue(empId, out var lastShift))
+                return true;
+
+            DateTime prevEnd = GetShiftEnd(lastShift.date, lastShift.shift);
+            DateTime currentEnd = GetShiftEnd(date, shift);
+
+            if ((date - lastShift.date).TotalDays > 1)
+                return true; // miał dzień przerwy
+
+            double shiftDuration = (currentEnd - GetShiftStart(date, shift)).TotalHours;
+            double previousDuration = (prevEnd - GetShiftStart(lastShift.date, lastShift.shift)).TotalHours;
+
+            return (previousDuration + shiftDuration) <= 40;
+        }
 
 
     }
