@@ -259,17 +259,30 @@ namespace ShiftSchedulerMVC.Controllers
                 .OrderBy(d => d)
                 .ToList();
 
-            var leaveDays = await _context.LeaveRequests
-    .Where(r => r.Status == LeaveStatus.Approved &&
-                r.Date >= drafts.Min(d => d.Date) &&
-                r.Date <= drafts.Max(d => d.Date))
-    .ToListAsync();
+            var allDraftDates = drafts.Select(d => d.Date).ToList(); // w pamięci
+            if (allDraftDates.Count == 0)
+            {
+                ViewBag.LeaveDays = new HashSet<(string, DateTime)>();
+            }
+            else
+            {
+                var minDateL= allDraftDates.Min();
+                var maxDateL = allDraftDates.Max();
 
-            ViewBag.LeaveDays = leaveDays
-                .Select(r => (r.EmployeeId, r.Date.Date))
-                .ToHashSet();
+                var leaveDays = await _context.LeaveRequests
+                    .Where(r => r.Status == LeaveStatus.Approved &&
+                                r.Date >= minDateL &&
+                                r.Date <= maxDateL)
+                    .ToListAsync();
+
+                ViewBag.LeaveDays = leaveDays
+                    .Select(r => (r.EmployeeId, r.Date.Date))
+                    .ToHashSet();
+            }
 
 
+
+            ViewBag.Employees = employees;
             return View(grouped);
         }
 
