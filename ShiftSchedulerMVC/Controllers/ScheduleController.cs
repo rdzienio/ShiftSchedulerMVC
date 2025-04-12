@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ShiftSchedulerMVC.Data;
@@ -22,7 +23,7 @@ namespace ShiftSchedulerMVC.Controllers
         {
             return View();
         }
-
+        [Authorize(Roles = "Manager")]
         [HttpPost]
         public async Task<IActionResult> Generate(ShiftRequirementInput input)
         {
@@ -33,6 +34,19 @@ namespace ShiftSchedulerMVC.Controllers
                 .Select(e => new Employee { Id = e.Id, Name = $"{e.FirstName} {e.LastName}" })
                 .ToListAsync();
 
+            var holidayOverrides = await _context.HolidayOverrides
+                .Where(h => h.ManagerId == manager.Id &&
+                h.Date >= input.StartDate && h.Date <= input.EndDate)
+                    .ToListAsync();
+
+            var overrideDict = holidayOverrides.ToDictionary(
+                h => h.Date.Date,
+                h => new Dictionary<ShiftType, int>
+                {
+                    { ShiftType.Morning, h.MorningCount },
+                    { ShiftType.Afternoon, h.AfternoonCount },
+                    { ShiftType.Night, h.NightCount }
+                });
 
 
             var shiftRequirements = new Dictionary<DateTime, Dictionary<ShiftType, int>>();
@@ -60,20 +74,26 @@ namespace ShiftSchedulerMVC.Controllers
                 }
 
                 shiftRequirements[date] = new Dictionary<ShiftType, int>
-        {
-            { ShiftType.Morning, morning },
-            { ShiftType.Afternoon, afternoon },
-            { ShiftType.Night, night }
-        };
+                {
+                    { ShiftType.Morning, overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Morning] : morning },
+                    { ShiftType.Afternoon, overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Afternoon] : afternoon },
+                    { ShiftType.Night, overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Night] : night }
+                };
             }
 
+
             var leaveDict = await _context.LeaveRequests
-                .Where(r => r.Status == LeaveStatus.Approved)
-                .GroupBy(r => r.EmployeeId)
-                .ToDictionaryAsync(
-                g => g.Key,
-                g => g.Select(r => r.Date.Date).ToHashSet()
+                .Where(r =>
+            r.Status == LeaveStatus.Approved &&
+            r.Date.Date >= input.StartDate.Date &&
+            r.Date.Date <= input.EndDate.Date)
+            .GroupBy(r => r.EmployeeId)
+            .ToDictionaryAsync(
+            g => g.Key,
+            g => g.Select(r => r.Date.Date).ToHashSet()
             );
+
+
 
             var vacationDays = leaveDict
                 .SelectMany(kvp => kvp.Value.Select(date => (empId: kvp.Key, date)))

@@ -28,7 +28,7 @@
                         <li class="nav-item">
                         @if (User.IsInRole("Manager"))
                         {
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="Index">Generuj</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="Index">Generuj harmonogram</a>
                         }
                         </li>
                         @if (User.IsInRole("Admin"))
@@ -47,6 +47,9 @@
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="Manager" asp-action="LeaveRequests">Wnioski urlopowe</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="HolidayOverride" asp-action="Index">Zaawansowane</a>
                             </li>
                         }
 

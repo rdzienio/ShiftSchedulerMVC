@@ -1,0 +1,36 @@
+﻿@model ShiftSchedulerMVC.Models.HolidayOverride
+
+@{
+    var isEdit = Model.Id != 0;
+    ViewData["Title"] = isEdit ? "Edytuj święto" : "Dodaj święto";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="@(isEdit ? "Edit" : "Create")" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div class="mb-3">
+        <label asp-for="Date" class="form-label"></label>
+        <input asp-for="Date" class="form-control" type="date" />
+        <span asp-validation-for="Date" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="MorningCount" class="form-label">Liczba osób (poranna)</label>
+        <input asp-for="MorningCount" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="AfternoonCount" class="form-label">Liczba osób (popołudniowa)</label>
+        <input asp-for="AfternoonCount" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="NightCount" class="form-label">Liczba osób (nocna)</label>
+        <input asp-for="NightCount" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">
+        @(isEdit ? "Zapisz zmiany" : "Dodaj")
+    </button>
+</form>

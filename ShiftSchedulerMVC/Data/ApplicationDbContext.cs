@@ -13,6 +13,9 @@ namespace ShiftSchedulerMVC.Data
 
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
 
+        public DbSet<HolidayOverride> HolidayOverrides { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
