@@ -1,0 +1,33 @@
+﻿@model List<ShiftSchedulerMVC.Models.ApplicationUser>
+@{
+    ViewData["Title"] = "Lista pracowników";
+}
+
+<h2>Lista pracowników</h2>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Imię i nazwisko</th>
+            <th>Email</th>
+            <th>Kalendarz</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var emp in Model)
+        {
+            <tr>
+                <td>@emp.FirstName @emp.LastName</td>
+                <td>@emp.Email</td>
+                <td>
+                    <a asp-controller="Schedule"
+                       asp-action="EmployeeCalendar"
+                       asp-route-employeeId="@emp.Id"
+                       class="btn btn-sm btn-outline-primary">
+                        Pokaż kalendarz
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

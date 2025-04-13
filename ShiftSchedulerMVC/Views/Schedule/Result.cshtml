@@ -28,6 +28,15 @@
 
     Func<DateTime, bool> isWeekend = date =>
         date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+
+    var fitness = ViewBag.FitnessScore as double? ?? 1.0;
+
+    @if (fitness < 1.0)
+    {
+        <div class="alert alert-warning">
+            <strong>Uwaga!</strong> Harmonogram może zawierać błędy. Sprawdź szczegóły i popraw, zanim go zatwierdzisz. (Fitness: @fitness.ToString("0.###"))
+        </div>
+    }
 }
 
 <style>
@@ -38,7 +47,7 @@
 </style>
 
 <h2>Wygenerowany Harmonogram</h2>
-
+<div class="text-start">
 <table class="table table-bordered text-center">
     <thead class="table-light">
         <tr>
@@ -73,7 +82,7 @@
         }
     </tbody>
 </table>
-
+</div>
 <p>
     <strong>Legenda:</strong>
     <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,

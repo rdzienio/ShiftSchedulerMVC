@@ -145,6 +145,9 @@ namespace ShiftSchedulerMVC.Controllers
         Shift = g.Shift
     }))
     .ToList();
+            var fitness = GeneticScheduler.EvaluateFitnessWrapper(result, shiftRequirements, input.WorkingHours, vacationDays);
+            ViewBag.FitnessScore = fitness;
+
 
             // Usuń stare szkice
             var existingDrafts = _context.DraftSchedules.Where(d => d.ManagerId == manager.Id);
@@ -561,26 +564,66 @@ namespace ShiftSchedulerMVC.Controllers
                 .Where(f => f.EmployeeId == user.Id && f.Date >= start && f.Date <= end)
                 .ToListAsync();
 
+            var leaves = await _context.LeaveRequests
+                .Where(r => r.EmployeeId == user.Id &&
+                            r.Status == LeaveStatus.Approved &&
+                            r.Date >= start && r.Date <= end)
+                .Select(r => r.Date.Date)
+                .ToListAsync();
+
             var calendar = Enumerable.Range(1, daysInMonth)
                 .Select(day =>
                 {
                     var date = new DateTime(y, m, day);
-                    var shift = shifts.FirstOrDefault(f => f.Date.Date == date);
+                    var shift = shifts.FirstOrDefault(f => f.Date.Date == date)?.Shift;
+
                     return new CalendarEntry
                     {
                         Date = date,
-                        Shift = shift != null ? shift.Shift : null
+                        Shift = shift,
+                        IsOnLeave = leaves.Contains(date)
                     };
                 }).ToList();
 
-
             ViewBag.Year = y;
             ViewBag.Month = m;
-            ViewBag.Employee = user.FirstName + " " + user.LastName;
+            ViewBag.Employee = $"{user.FirstName} {user.LastName}";
 
             return View(calendar);
         }
 
+
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> EmployeeCalendar(string employeeId, int? year, int? month)
+        {
+            var employee = await _context.Users.FirstOrDefaultAsync(u => u.Id == employeeId);
+            if (employee == null) return NotFound();
+
+            var today = DateTime.Today;
+            int y = year ?? today.Year;
+            int m = month ?? today.Month;
+
+            var start = new DateTime(y, m, 1);
+            var end = start.AddMonths(1).AddDays(-1);
+
+            var entries = await _context.FinalizedSchedules
+                .Where(f => f.EmployeeId == employeeId && f.Date >= start && f.Date <= end)
+                .ToListAsync();
+
+            var model = Enumerable.Range(1, DateTime.DaysInMonth(y, m))
+                .Select(day => new CalendarEntry
+                {
+                    Date = new DateTime(y, m, day),
+                    Shift = entries.FirstOrDefault(e => e.Date.Day == day)?.Shift
+                })
+                .ToList();
+
+            ViewBag.Year = y;
+            ViewBag.Month = m;
+            ViewBag.Employee = $"{employee.FirstName} {employee.LastName}";
+
+            return View("MyCalendar", model); // Używamy tego samego widoku
+        }
 
 
     }

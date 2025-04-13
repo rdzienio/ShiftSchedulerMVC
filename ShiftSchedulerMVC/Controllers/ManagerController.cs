@@ -55,5 +55,16 @@ namespace ShiftSchedulerMVC.Controllers
             }
             return RedirectToAction("LeaveRequests");
         }
+
+        public async Task<IActionResult> EmployeeList()
+        {
+            var manager = await _userManager.GetUserAsync(User);
+            var employees = await _context.Users
+                .Where(e => e.ManagerId == manager.Id)
+                .ToListAsync();
+
+            return View(employees);
+        }
+
     }
 }

@@ -852,6 +852,10 @@ namespace ShiftSchedulerMVC.Services
             return (previousDuration + shiftDuration) <= 40;
         }
 
+        public static double EvaluateFitnessWrapper(Chromosome chrom, Dictionary<DateTime, Dictionary<ShiftType, int>> req, int hours, HashSet<(string, DateTime)> vacations)
+        {
+            return EvaluateFitness(chrom, req, hours, vacations);
+        }
 
     }
 }
