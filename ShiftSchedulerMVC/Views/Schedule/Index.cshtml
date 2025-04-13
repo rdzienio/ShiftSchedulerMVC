@@ -1,7 +1,7 @@
 ﻿@model ShiftSchedulerMVC.Models.ShiftRequirementInput
 
 @{
-    ViewData["Title"] = "Ustawienia zmian";
+    ViewData["Title"] = "Ustawienia harmonogramu";
     var countOptions = Enumerable.Range(0, 3).ToList();
 }
 
@@ -85,6 +85,4 @@
     </div>
 
     <button type="submit" class="btn btn-primary mt-3">Generuj harmonogram</button>
-    <a class="btn btn-secondary" asp-action="Drafts">Zobacz szkic harmonogramu</a>
-
 </form>

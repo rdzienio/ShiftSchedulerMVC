@@ -194,7 +194,7 @@ namespace ShiftSchedulerMVC.Controllers
 
 
 
-        [Authorize(Roles = "Manager")]
+        /*[Authorize(Roles = "Manager")]
         public async Task<IActionResult> ApprovedSchedules()
         {
             var manager = await _userManager.GetUserAsync(User);
@@ -207,24 +207,63 @@ namespace ShiftSchedulerMVC.Controllers
                 .ToListAsync();
 
             return View(scheduleDates);
+        }*/
+
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ApprovedSchedules(DateTime? startDate, DateTime? endDate)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            var schedules = await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id)
+                .ToListAsync();
+
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                schedules = schedules
+                    .Where(s => s.Date.Date >= startDate.Value.Date && s.Date.Date <= endDate.Value.Date)
+                    .ToList();
+            }
+
+            var groupedDates = schedules
+                .Select(s => s.Date.Date)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToList();
+
+            ViewData["StartDate"] = startDate?.ToString("yyyy-MM-dd");
+            ViewData["EndDate"] = endDate?.ToString("yyyy-MM-dd");
+
+
+            return View(groupedDates);
         }
 
 
-        [Authorize(Roles = "Manager")]
+
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteScheduleGroup(DateTime date)
         {
             var manager = await _userManager.GetUserAsync(User);
 
             var entries = await _context.FinalizedSchedules
-                .Where(s => s.ManagerId == manager.Id && s.Date == date)
+                .Where(s => s.ManagerId == manager.Id && s.Date.Date == date.Date)
                 .ToListAsync();
+
+            if (!entries.Any())
+            {
+                TempData["Error"] = $"Nie znaleziono żadnych wpisów do usunięcia dla daty {date:yyyy-MM-dd}";
+                Console.WriteLine($"Nie znaleziono żadnych wpisów do usunięcia dla daty {date:yyyy-MM-dd}");
+                return RedirectToAction("ApprovedSchedules");
+            }
 
             _context.FinalizedSchedules.RemoveRange(entries);
             await _context.SaveChangesAsync();
 
+            TempData["Success"] = $"Usunięto harmonogram z {date:yyyy-MM-dd}";
             return RedirectToAction("ApprovedSchedules");
         }
+
 
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Drafts()
@@ -337,6 +376,211 @@ namespace ShiftSchedulerMVC.Controllers
 
             return View(grouped);
         }
+
+        /*[Authorize(Roles = "Manager")]
+        public async Task<IActionResult> Finalized(DateTime? date)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            // Jeśli nie podano daty – weź ostatnią (lub żadną)
+            date ??= await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id)
+                .Select(s => s.Date)
+                .MaxAsync();
+
+            var schedules = await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id && s.Date.Date == date.Value.Date)
+                .Include(s => s.Employee)
+                .ToListAsync();
+
+            // Rekonstrukcja Chromosome
+            var genes = schedules
+                .GroupBy(s => new { s.Date, s.Shift })
+                .Select(g => new Gene
+                {
+                    Date = g.Key.Date,
+                    Shift = g.Key.Shift,
+                    AssignedEmployees = g.Select(s => new Employee
+                    {
+                        Id = s.Employee.Id,
+                        Name = $"{s.Employee.FirstName} {s.Employee.LastName}"
+                    }).ToList()
+                }).ToList();
+
+            var chromosome = new Chromosome { Genes = genes };
+
+            // Liczby godzin
+            var employeeHours = schedules
+                .GroupBy(s => s.EmployeeId)
+                .ToDictionary(g => g.Key, g => g.Count() * 8);
+
+            ViewBag.EmployeeHours = employeeHours;
+
+            // Zatwierdzone urlopy do podświetlenia
+            var empIds = schedules.Select(s => s.EmployeeId).Distinct().ToList();
+            var leaveDays = await _context.LeaveRequests
+                .Where(r => r.Status == LeaveStatus.Approved &&
+                            empIds.Contains(r.EmployeeId) &&
+                            r.Date == date.Value.Date)
+                .ToListAsync(); // <-- pobieramy z bazy
+
+            var leaveSet = leaveDays
+                .Select(r => (r.EmployeeId, r.Date.Date))
+                .ToHashSet();
+
+            ViewBag.LeaveDays = leaveSet;
+
+            return View("Result", chromosome);
+        }*/
+
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> Finalized(DateTime? startDate, DateTime? endDate)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            var schedules = await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id)
+                .Include(s => s.Employee)
+                .ToListAsync();
+
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                schedules = schedules
+                    .Where(s => s.Date >= startDate.Value && s.Date <= endDate.Value)
+                    .ToList();
+            }
+
+            var grouped = schedules
+                .GroupBy(s => s.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(s => s.Date).ToList()
+                );
+
+            var employees = await _context.Users
+                .Where(e => grouped.Keys.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+
+            var leaveDays = await _context.LeaveRequests
+                .Where(r => r.Status == LeaveStatus.Approved &&
+                            grouped.Keys.Contains(r.EmployeeId))
+                .ToListAsync();
+
+            ViewBag.Employees = employees;
+            ViewBag.Dates = schedules.Select(s => s.Date.Date).Distinct().OrderBy(d => d).ToList();
+            ViewBag.LeaveDays = leaveDays.Select(r => (r.EmployeeId, r.Date.Date)).ToHashSet();
+
+            return View(grouped);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteScheduleRange(DateTime startDate, DateTime endDate)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            var entries = await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id && s.Date.Date >= startDate.Date && s.Date.Date <= endDate.Date)
+                .ToListAsync();
+
+            if (!entries.Any())
+            {
+                TempData["Error"] = $"Nie znaleziono żadnych wpisów do usunięcia w zakresie {startDate:yyyy-MM-dd} – {endDate:yyyy-MM-dd}";
+                return RedirectToAction("ApprovedSchedules");
+            }
+
+            _context.FinalizedSchedules.RemoveRange(entries);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Usunięto {entries.Count} wpisów z zakresu {startDate:yyyy-MM-dd} – {endDate:yyyy-MM-dd}";
+            return RedirectToAction("ApprovedSchedules");
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpGet]
+        public async Task<IActionResult> EditSchedule(int id)
+        {
+            var entry = await _context.FinalizedSchedules.Include(f => f.Employee).FirstOrDefaultAsync(f => f.Id == id);
+            if (entry == null) return NotFound();
+
+            ViewBag.AllEmployees = await _context.Users
+                .Where(u => u.ManagerId == entry.ManagerId)
+                .ToListAsync();
+
+            return View(entry);
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpPost]
+        public async Task<IActionResult> EditSchedule(FinalizedSchedule model)
+        {
+            var entry = await _context.FinalizedSchedules.FindAsync(model.Id);
+            if (entry == null) return NotFound();
+
+            entry.EmployeeId = model.EmployeeId;
+            entry.Shift = model.Shift;
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+        }
+
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> MySchedule(DateTime? startDate, DateTime? endDate)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var query = _context.FinalizedSchedules
+                .Where(f => f.EmployeeId == user.Id);
+
+            if (startDate.HasValue)
+                query = query.Where(f => f.Date >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(f => f.Date <= endDate.Value);
+
+            var schedule = await query.OrderBy(f => f.Date).ToListAsync();
+
+            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
+
+            return View(schedule);
+        }
+
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> MyCalendar(int? year, int? month)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var today = DateTime.Today;
+            int y = year ?? today.Year;
+            int m = month ?? today.Month;
+
+            var daysInMonth = DateTime.DaysInMonth(y, m);
+            var start = new DateTime(y, m, 1);
+            var end = new DateTime(y, m, daysInMonth);
+
+            var shifts = await _context.FinalizedSchedules
+                .Where(f => f.EmployeeId == user.Id && f.Date >= start && f.Date <= end)
+                .ToListAsync();
+
+            var calendar = Enumerable.Range(1, daysInMonth)
+                .Select(day =>
+                {
+                    var date = new DateTime(y, m, day);
+                    var shift = shifts.FirstOrDefault(f => f.Date.Date == date);
+                    return new CalendarEntry
+                    {
+                        Date = date,
+                        Shift = shift != null ? shift.Shift : null
+                    };
+                }).ToList();
+
+
+            ViewBag.Year = y;
+            ViewBag.Month = m;
+            ViewBag.Employee = user.FirstName + " " + user.LastName;
+
+            return View(calendar);
+        }
+
 
 
     }

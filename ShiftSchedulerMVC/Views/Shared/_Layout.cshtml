@@ -26,11 +26,6 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                        @if (User.IsInRole("Manager"))
-                        {
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="Index">Generuj harmonogram</a>
-                        }
-                        </li>
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
@@ -40,11 +35,23 @@
                         @if (User.IsInRole("Employee"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Leave" asp-action="MyRequests">Wnioski urlopowe</a>
+                                <a class="nav-link text-dark" asp-controller="Schedule" asp-action="MyCalendar">Mój kalendarz</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Schedule" asp-action="MySchedule">Mój harmonogram</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Leave" asp-action="MyRequests">Wnioski urlopowe</a>
                             </li>
                         }
                         @if (User.IsInRole("Manager"))
                         {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="Index">Generuj harmonogram</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Schedule" asp-action="ApprovedSchedules">Harmonogramy</a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="Manager" asp-action="LeaveRequests">Wnioski urlopowe</a>
                             </li>

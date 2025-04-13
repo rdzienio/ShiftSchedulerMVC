@@ -1,29 +1,79 @@
 ﻿@model List<DateTime>
+
 @{
     ViewData["Title"] = "Zatwierdzone harmonogramy";
+    var groupedDates = Model
+        .OrderBy(d => d)
+        .GroupBy(d => d.Date)
+        .Select(g => g.Key)
+        .ToList();
 }
 
 <h2>@ViewData["Title"]</h2>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Data</th>
-            <th>Akcja</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var date in Model)
-        {
+<form method="get" asp-action="Finalized" class="row g-3 mb-4">
+    <div class="col-auto">
+        <label for="startDate" class="form-label">Od:</label>
+        <input type="date" class="form-control" id="startDate" name="startDate" value="@ViewData["StartDate"]" />
+    </div>
+    <div class="col-auto">
+        <label for="endDate" class="form-label">Do:</label>
+        <input type="date" class="form-control" id="endDate" name="endDate" value="@ViewData["EndDate"]" />
+    </div>
+    <div class="col-auto d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Sprawdź</button>
+    </div>
+</form>
+
+<h4>Usuń harmonogram z zakresu dat</h4>
+<form asp-action="DeleteScheduleRange" method="post" class="row g-3 mb-4">
+    @Html.AntiForgeryToken()
+    <div class="col-md-4">
+        <label for="startDate" class="form-label">Od</label>
+        <input type="date" name="startDate" class="form-control" required />
+    </div>
+    <div class="col-md-4">
+        <label for="endDate" class="form-label">Do</label>
+        <input type="date" name="endDate" class="form-control" required />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-danger w-100">Usuń zakres</button>
+    </div>
+</form>
+
+
+@if (groupedDates.Count == 0)
+{
+    <div class="alert alert-info">Brak zatwierdzonych harmonogramów w wybranym okresie.</div>
+}
+else
+{
+    <table class="table">
+        <thead>
             <tr>
-                <td>@date.ToString("yyyy-MM-dd")</td>
-                <td>
-                    <a asp-action="FinalizedSchedules" asp-route-date="@date" class="btn btn-sm btn-primary">Pokaż</a>
-                    <form asp-action="DeleteScheduleGroup" asp-route-date="@date" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-danger">Usuń</button>
-                    </form>
-                </td>
+                <th>Data</th>
+                <th>Akcja</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var date in groupedDates)
+            {
+                <tr>
+                    <td>@date.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <a asp-action="FinalizedSchedules" asp-route-date="@date.ToString("yyyy-MM-dd")" class="btn btn-sm btn-primary">Pokaż</a>
+
+                        <a asp-action="Finalized" asp-route-startDate="@date.ToString("yyyy-MM-dd")" asp-route-endDate="@date.ToString("yyyy-MM-dd")" class="btn btn-sm btn-secondary">Edytuj</a>
+
+                        <form asp-action="DeleteScheduleGroup" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="date" value="@date.ToString("yyyy-MM-dd")" />
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Czy na pewno usunąć harmonogram z @date.ToString("yyyy-MM-dd")?')">Usuń</button>
+                        </form>
+
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

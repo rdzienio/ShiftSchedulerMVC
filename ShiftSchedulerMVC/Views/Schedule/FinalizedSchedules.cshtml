@@ -1,4 +1,4 @@
-﻿@model Dictionary<string, List<ShiftSchedulerMVC.Models.DraftSchedule>>
+﻿@model Dictionary<string, List<ShiftSchedulerMVC.Models.FinalizedSchedule>>
 @{
     ViewData["Title"] = "Zatwierdzony harmonogram";
     var employees = ViewBag.Employees as Dictionary<string, string>;
@@ -22,7 +22,7 @@
     }
 </style>
 
-<h2>Zatwierdzony harmonogram</h2>
+<h2>Zatwierdzony dzień</h2>
 
 <form asp-action="" method="post">
     <table class="table table-bordered text-center">

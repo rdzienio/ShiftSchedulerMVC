@@ -1,0 +1,91 @@
+﻿@model Dictionary<string, List<ShiftSchedulerMVC.Models.FinalizedSchedule>>
+
+@{
+    ViewData["Title"] = "Edytuj dzień";
+    var employees = ViewBag.Employees as Dictionary<string, string> ?? new();
+    var dates = ViewBag.Dates as List<DateTime> ?? new();
+    var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
+
+    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
+        shift == ShiftType.Morning ? ("1", "lightgreen") :
+        shift == ShiftType.Afternoon ? ("2", "khaki") :
+        shift == ShiftType.Night ? ("3", "lightblue") :
+        ("", "white");
+
+    Func<DateTime, bool> isWeekend = date =>
+        date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+}
+
+<h2>Edytuj dzień</h2>
+
+
+<form method="get" asp-action="Finalized">
+    <div class="row mb-3">
+        <div class="col">
+            <label>Od:</label>
+            <input type="date" name="startDate" class="form-control" />
+        </div>
+        <div class="col">
+            <label>Do:</label>
+            <input type="date" name="endDate" class="form-control" />
+        </div>
+        <div class="col d-flex align-items-end">
+            <button type="submit" class="btn btn-primary">Filtruj</button>
+        </div>
+    </div>
+</form>
+
+<table class="table table-bordered text-center">
+    <thead class="table-light">
+        <tr>
+            <th>Pracownik</th>
+            @foreach (var date in dates)
+            {
+                var headerClass = isWeekend(date) ? "weekend-header" : "";
+                <th class="@headerClass">@date.ToString("dd.MM")</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var kvp in Model.OrderBy(k => k.Key))
+        {
+            var empId = kvp.Key;
+            var name = employees.ContainsKey(empId) ? employees[empId] : empId;
+            var assignments = kvp.Value.ToDictionary(x => x.Date.Date, x => x.Shift);
+
+            <tr>
+                <td>@name</td>
+                @foreach (var date in dates)
+                {
+                    var empKey = (empId, date);
+                    var isOnLeave = leaveDays.Contains(empKey);
+                    var assigned = assignments.ContainsKey(date);
+                    var (code, color) = assigned ? shiftInfo(assignments[date]) : ("", "white");
+                    var finalColor = isOnLeave ? "hotpink" : color;
+
+                    <td style="background-color:@finalColor">
+                        @if (assigned)
+                        {
+                            var id = Model[empId].FirstOrDefault(x => x.Date.Date == date.Date)?.Id;
+                            <a asp-action="EditSchedule" asp-route-id="@id" class="btn btn-sm btn-outline-secondary">@code</a>
+                        }
+                        else
+                        {
+                            @code
+                        }
+                    </td>
+
+
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+<p>
+    <strong>Legenda:</strong>
+    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
+    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
+    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna,
+    <span style="background-color:hotpink;padding:2px 6px;">&nbsp;</span> urlop
+</p>

@@ -1,0 +1,33 @@
+﻿@model ShiftSchedulerMVC.Models.FinalizedSchedule
+@{
+    ViewData["Title"] = "Edycja zmiany";
+    var employees = ViewBag.AllEmployees as List<ShiftSchedulerMVC.Models.ApplicationUser>;
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="EditSchedule" method="post">
+    <input type="hidden" asp-for="Id" />
+
+    <div class="mb-3">
+        <label asp-for="Date" class="form-label">Data</label>
+        <input asp-for="Date" class="form-control" readonly />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Shift" class="form-label">Zmiana</label>
+        <select asp-for="Shift" class="form-control" asp-items="Html.GetEnumSelectList<ShiftType>()"></select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="EmployeeId" class="form-label">Pracownik</label>
+        <select asp-for="EmployeeId" class="form-control">
+            @foreach (var emp in employees)
+            {
+                <option value="@emp.Id">@emp.FirstName @emp.LastName</option>
+            }
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+</form>

@@ -1,0 +1,80 @@
+﻿@model List<ShiftSchedulerMVC.Models.CalendarEntry>
+
+@{
+    ViewData["Title"] = "Mój kalendarz";
+    var year = (int)ViewBag.Year;
+    var month = (int)ViewBag.Month;
+    var days = Model;
+    var firstDayOfWeek = new DateTime(year, month, 1).DayOfWeek;
+    int padding = ((int)firstDayOfWeek + 6) % 7; // poprawka: poniedziałek = 0
+    var name = ViewBag.Employee as string;
+
+    Func<ShiftType?, (string Code, string Color)> shiftInfo = shift =>
+        shift == ShiftType.Morning ? ("1", "lightgreen") :
+        shift == ShiftType.Afternoon ? ("2", "khaki") :
+        shift == ShiftType.Night ? ("3", "lightblue") :
+        ("W", "white"); // dzień wolny
+}
+
+<h2>@name – @(new DateTime(year, month, 1).ToString("MMMM yyyy"))</h2>
+
+<div class="mb-3">
+    <a class="btn btn-outline-secondary"
+       asp-action="MyCalendar" asp-route-year="@(month == 1 ? year - 1 : year)"
+       asp-route-month="@(month == 1 ? 12 : month - 1)">« Poprzedni</a>
+    <a class="btn btn-outline-secondary"
+       asp-action="MyCalendar" asp-route-year="@(month == 12 ? year + 1 : year)"
+       asp-route-month="@(month == 12 ? 1 : month + 1)">Następny »</a>
+</div>
+
+<table class="table table-bordered text-center">
+    <thead>
+        <tr>
+            <th>Pon</th>
+            <th>Wt</th>
+            <th>Śr</th>
+            <th>Czw</th>
+            <th>Pt</th>
+            <th>Sob</th>
+            <th>Nd</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            int day = 1;
+            int totalDays = DateTime.DaysInMonth(year, month);
+            for (int week = 0; day <= totalDays; week++)
+            {
+                <tr>
+                    @for (int i = 0; i < 7; i++)
+                    {
+                        if (week == 0 && i < padding || day > totalDays)
+                        {
+                            <td></td>
+                        }
+                        else
+                        {
+                            var date = new DateTime(year, month, day);
+                            var entry = days.FirstOrDefault(d => d.Date.Date == date);
+                            var (code, color) = shiftInfo(entry?.Shift);
+
+                            <td style="background-color:@color">
+                                <strong>@day</strong><br />
+                                @code
+                            </td>
+                            day++;
+                        }
+                    }
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<p>
+    <strong>Legenda:</strong><br />
+    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
+    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
+    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna,
+    <span style="background-color:white;border:1px solid #ccc;padding:2px 6px;">W</span> wolne
+</p>

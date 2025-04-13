@@ -52,7 +52,7 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var emp in allEmployees)
+        @foreach (var emp in allEmployees.OrderBy(k => k.Id))
         {
             <tr>
                 <td>@emp.Name</td>
@@ -83,8 +83,6 @@
 </p>
 
 <form asp-action="Drafts" method="get">
-    <button type="submit" class="btn btn-success">Sprawdź szkic</button>
+    <button type="submit" class="btn btn-success">Sprawdź harmonogram</button>
 </form>
-
-
 

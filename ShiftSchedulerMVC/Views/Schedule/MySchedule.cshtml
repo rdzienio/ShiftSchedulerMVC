@@ -1,0 +1,49 @@
+﻿@model List<FinalizedSchedule>
+@{
+    ViewData["Title"] = "Mój harmonogram";
+    var dates = Model.Select(e => e.Date.Date).Distinct().OrderBy(d => d).ToList();
+    var grouped = Model.GroupBy(e => e.Date.Date).ToDictionary(g => g.Key, g => g.FirstOrDefault());
+    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
+        shift == ShiftType.Morning ? ("1", "lightgreen") :
+        shift == ShiftType.Afternoon ? ("2", "khaki") :
+        shift == ShiftType.Night ? ("3", "lightblue") :
+        ("", "white");
+}
+
+<h2>Mój harmonogram</h2>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+        <label for="startDate" class="form-label">Od:</label>
+        <input type="date" id="startDate" name="startDate" class="form-control"
+               value="@ViewBag.StartDate" />
+    </div>
+    <div class="col-auto">
+        <label for="endDate" class="form-label">Do:</label>
+        <input type="date" id="endDate" name="endDate" class="form-control"
+               value="@ViewBag.EndDate" />
+    </div>
+    <div class="col-auto d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Filtruj</button>
+    </div>
+</form>
+
+<table class="table table-bordered text-center">
+    <thead class="table-light">
+        <tr>
+            <th>Data</th>
+            <th>Zmiana</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var date in dates)
+        {
+            var entry = grouped.ContainsKey(date) ? grouped[date] : null;
+            var (code, color) = entry != null ? shiftInfo(entry.Shift) : ("", "white");
+            <tr>
+                <td>@date.ToString("yyyy-MM-dd")</td>
+                <td style="background-color:@color">@code</td>
+            </tr>
+        }
+    </tbody>
+</table>

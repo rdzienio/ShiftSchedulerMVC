@@ -1,7 +1,7 @@
 ﻿@model Dictionary<string, List<ShiftSchedulerMVC.Models.DraftSchedule>>
 @{
     ViewData["Title"] = "Szkic harmonogramu";
-    var employees = ViewBag.Employees as Dictionary<string, string>;
+    var employees = ViewBag.Employees as Dictionary<string, string> ?? new();
     var allDates = ViewBag.Dates as List<DateTime>;
     var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
 
@@ -38,7 +38,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var kvp in Model)
+            @foreach (var kvp in Model.OrderBy(k => k.Key))
             {
                 var empId = kvp.Key;
                 var name = employees.ContainsKey(empId) ? employees[empId] : empId;
