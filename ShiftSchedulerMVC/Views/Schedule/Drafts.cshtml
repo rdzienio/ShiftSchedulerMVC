@@ -22,7 +22,7 @@
     }
 </style>
 
-<h2>Szkic harmonogramu</h2>
+<h2>Niezatwierdzony harmonogram</h2>
 
 <form asp-action="ConfirmDrafts" method="post">
     <table class="table table-bordered text-center">
@@ -64,8 +64,10 @@
             }
         </tbody>
     </table>
-
+    <p>
     <button class="btn btn-success mt-3" type="submit">Zatwierdź szkic</button>
+    <a asp-action="Schedule" class="btn btn-secondary mt-3">Anuluj</a>
+    </p>
 </form>
 <p>
     <strong>Legenda:</strong>
