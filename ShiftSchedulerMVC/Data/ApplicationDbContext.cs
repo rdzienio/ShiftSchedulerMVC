@@ -19,6 +19,8 @@ namespace ShiftSchedulerMVC.Data
 
         public DbSet<DraftSchedule> DraftSchedules { get; set; }
 
+        public DbSet<PlannedAbsence> PlannedAbsences { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -35,6 +37,12 @@ namespace ShiftSchedulerMVC.Data
                 .WithMany()
                 .HasForeignKey(d => d.EmployeeId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<PlannedAbsence>()
+                .HasOne(p => p.Employee)
+                .WithMany()
+                .HasForeignKey(p => p.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
 
 
         }

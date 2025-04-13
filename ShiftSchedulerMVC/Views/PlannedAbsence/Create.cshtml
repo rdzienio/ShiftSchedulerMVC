@@ -1,0 +1,40 @@
+﻿@model ShiftSchedulerMVC.Models.PlannedAbsence
+@{
+    ViewData["Title"] = "Dodaj nieobecność";
+    var employees = ViewBag.Employees as List<Microsoft.AspNetCore.Identity.IdentityUser>;
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="Create" method="post">
+    <div class="mb-3">
+        <label asp-for="EmployeeId" class="form-label">Pracownik</label>
+        <select asp-for="EmployeeId" class="form-select" asp-items="ViewBag.EmployeeSelectList">
+            <option value="">-- Wybierz pracownika --</option>
+        </select>
+        <span asp-validation-for="EmployeeId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Date" class="form-label">Data</label>
+        <input asp-for="Date" type="date" class="form-control" />
+        <span asp-validation-for="Date" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Reason" class="form-label">Typ</label>
+        <select asp-for="Reason" class="form-select">
+            <option value="PlannedLeave">Urlop planowany</option>
+            <option value="SickLeave">Zwolnienie lekarskie</option>
+            <option value="Other">Inne</option>
+        </select>
+        <span asp-validation-for="Reason" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-success">Zapisz</button>
+    <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

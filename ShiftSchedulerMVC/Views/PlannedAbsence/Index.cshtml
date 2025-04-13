@@ -1,0 +1,37 @@
+﻿@model List<ShiftSchedulerMVC.Models.PlannedAbsence>
+@{
+    ViewData["Title"] = "Planowane nieobecności";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Dodaj nieobecność</a>
+</p>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Pracownik</th>
+            <th>Data</th>
+            <th>Typ</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Employee.FirstName @item.Employee.LastName</td>
+                <td>@item.Date.ToString("yyyy-MM-dd")</td>
+                <td>@item.Reason</td>
+                <td>
+                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Na pewno usunąć?')">Usuń</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
