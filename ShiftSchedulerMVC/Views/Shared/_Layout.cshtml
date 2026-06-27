@@ -75,6 +75,9 @@
                                 <span class="navbar-text">Witaj, @User.Identity?.Name!</span>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Account" asp-action="ChangePassword">Zmień hasło</a>
+                            </li>
+                            <li class="nav-item">
                                 <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
                                     <button type="submit" class="btn btn-outline-danger">Wyloguj się</button>
                                 </form>

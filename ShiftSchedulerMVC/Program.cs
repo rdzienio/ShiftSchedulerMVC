@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ShiftSchedulerMVC.Data;
@@ -57,7 +58,20 @@ builder.Services.AddSession(options =>
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+// Aplikacja stoi za proxy (mikr.us + Cloudflare) terminującym TLS i przekazującym
+// nagłówki X-Forwarded-*; dzięki temu widzi prawdziwy schemat (https) oraz IP klienta.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Nie znamy stałych adresów proxy (Cloudflare/mikr.us), więc nie ograniczamy zaufanych źródeł.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// Musi być PRZED pozostałym middleware, żeby schemat/IP z nagłówków były widoczne dalej w potoku.
+app.UseForwardedHeaders();
 
 // Middleware
 if (!app.Environment.IsDevelopment())
