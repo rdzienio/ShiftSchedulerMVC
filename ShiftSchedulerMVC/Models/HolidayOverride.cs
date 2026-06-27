@@ -10,6 +10,7 @@ namespace ShiftSchedulerMVC.Models
         [ValidateNever]
         public string ManagerId { get; set; }
         [Required]
+        [Display(Name = "Data")]
         public DateTime Date { get; set; }
         [Required]
         public int MorningCount { get; set; } = 0;

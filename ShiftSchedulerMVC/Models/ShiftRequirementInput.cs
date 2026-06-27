@@ -4,10 +4,10 @@ namespace ShiftSchedulerMVC.Models
 {
     public class ShiftRequirementInput : IValidatableObject
     {
-        // Dni robocze
-        public int MorningCount { get; set; } = 2;
-        public int AfternoonCount { get; set; } = 2;
-        public int NightCount { get; set; } = 2;
+        // Dni robocze (domyślnie 0 – kierownik świadomie ustawia obsadę)
+        public int MorningCount { get; set; } = 0;
+        public int AfternoonCount { get; set; } = 0;
+        public int NightCount { get; set; } = 0;
 
         // Weekend – sobota
         public int SaturdayMorningCount { get; set; } = 0;
@@ -41,7 +41,11 @@ namespace ShiftSchedulerMVC.Models
 
         [Required(ErrorMessage = "Podaj datę końcową.")]
         [DataType(DataType.Date)]
-        public DateTime EndDate { get; set; } = DateTime.Today.AddDays(6);
+        // Kalendarzowy koniec bieżącego miesiąca
+        public DateTime EndDate { get; set; } = new DateTime(
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            DateTime.DaysInMonth(DateTime.Today.Year, DateTime.Today.Month));
 
         [Range(1, 1000, ErrorMessage = "Liczba roboczogodzin musi być z zakresu 1–1000.")]
         public int WorkingHours { get; set; } = 160;
