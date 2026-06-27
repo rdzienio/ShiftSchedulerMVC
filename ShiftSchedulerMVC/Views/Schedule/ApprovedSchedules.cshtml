@@ -7,6 +7,11 @@
         .GroupBy(d => d.Date)
         .Select(g => g.Key)
         .ToList();
+
+    var firstOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    var lastOfMonth = firstOfMonth.AddMonths(1).AddDays(-1);
+
+    int selectedYear = int.TryParse(Context.Request.Query["year"], out var y) ? y : DateTime.Today.Year;
 }
 
 <h2>@ViewData["Title"]</h2>
@@ -23,7 +28,40 @@
     <div class="col-auto d-flex align-items-end">
         <button type="submit" class="btn btn-primary">Sprawdź</button>
     </div>
+    <div class="col-auto d-flex align-items-end">
+        <a asp-action="Finalized"
+           asp-route-startDate="@firstOfMonth.ToString("yyyy-MM-dd")"
+           asp-route-endDate="@lastOfMonth.ToString("yyyy-MM-dd")"
+           class="btn btn-outline-primary">Pokaż bieżący miesiąc</a>
+    </div>
 </form>
+
+<div class="card mb-4" style="max-width: 480px;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <a asp-action="ApprovedSchedules" asp-route-year="@(selectedYear - 1)"
+           class="btn btn-sm btn-outline-secondary">«</a>
+        <strong>Podgląd miesiąca – @selectedYear</strong>
+        <a asp-action="ApprovedSchedules" asp-route-year="@(selectedYear + 1)"
+           class="btn btn-sm btn-outline-secondary">»</a>
+    </div>
+    <div class="card-body">
+        <div class="row row-cols-3 g-2">
+            @for (int m = 1; m <= 12; m++)
+            {
+                var first = new DateTime(selectedYear, m, 1);
+                var last = first.AddMonths(1).AddDays(-1);
+                var label = first.ToString("MMMM");
+                label = char.ToUpper(label[0]) + label.Substring(1);
+                <div class="col">
+                    <a asp-action="Finalized"
+                       asp-route-startDate="@first.ToString("yyyy-MM-dd")"
+                       asp-route-endDate="@last.ToString("yyyy-MM-dd")"
+                       class="btn btn-outline-primary w-100">@label</a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
 
 <h4>Usuń harmonogram z zakresu dat</h4>
 <form asp-action="DeleteScheduleRange" method="post" class="row g-3 mb-4">

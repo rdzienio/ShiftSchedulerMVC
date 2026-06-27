@@ -1,17 +1,19 @@
 ﻿@model ShiftSchedulerMVC.Models.FinalizedSchedule
 @{
-    ViewData["Title"] = "Edycja zmiany";
     var employees = ViewBag.AllEmployees as List<ShiftSchedulerMVC.Models.ApplicationUser>;
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "Dodaj zmianę" : "Edycja zmiany";
+    var formAction = isNew ? "AddSchedule" : "EditSchedule";
 }
 
 <h2>@ViewData["Title"]</h2>
 
-<form asp-action="EditSchedule" method="post">
+<form asp-action="@formAction" method="post">
     <input type="hidden" asp-for="Id" />
 
     <div class="mb-3">
         <label asp-for="Date" class="form-label">Data</label>
-        <input asp-for="Date" class="form-control" readonly />
+        <input asp-for="Date" class="form-control" type="date" asp-format="{0:yyyy-MM-dd}" readonly />
     </div>
 
     <div class="mb-3">
@@ -30,5 +32,5 @@
     </div>
 
     <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
-    <a asp-action="Schedule" class="btn btn-secondary mt-3">Anuluj</a>
+    <a asp-action="Index" class="btn btn-secondary mt-3">Anuluj</a>
 </form>

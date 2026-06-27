@@ -20,3 +20,17 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* === Harmonogram: kody zmian ===
+   !important, bo Bootstrap .table ustawia tło komórek przez --bs-table-bg
+   z wyższą specyficznością niż pojedyncza klasa. */
+.shift-morning   { background-color: lightgreen !important; }
+.shift-afternoon { background-color: khaki !important; }
+.shift-night     { background-color: lightblue !important; }
+.shift-leave     { background-color: hotpink !important; }
+.shift-free      { background-color: #fff !important; border: 1px solid #ccc; }
+
+.weekend-header  { color: red; font-weight: bold; }
+
+/* Próbka koloru w legendzie */
+.legend-swatch { display: inline-block; padding: 2px 6px; }

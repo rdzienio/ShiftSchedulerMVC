@@ -22,12 +22,17 @@ namespace ShiftSchedulerMVC.Controllers
         }
         public IActionResult Index()
         {
-            return View();
+            return View(new ShiftRequirementInput());
         }
         [Authorize(Roles = "Manager")]
         [HttpPost]
         public async Task<IActionResult> Generate(ShiftRequirementInput input)
         {
+            if (!ModelState.IsValid)
+            {
+                return View("Index", input);
+            }
+
             var dates = GenerateDateRange(input.StartDate, input.EndDate);
             var manager = await _userManager.GetUserAsync(User);
             var employees = await _context.Users
@@ -465,24 +470,33 @@ namespace ShiftSchedulerMVC.Controllers
                     .ToList();
             }
 
-            var grouped = schedules
-                .GroupBy(s => s.EmployeeId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderBy(s => s.Date).ToList()
-                );
+            // Wszyscy pracownicy menedżera – także ci bez przypisanych zmian,
+            // aby można było im dodać zmianę w pustej komórce.
+            var allEmployees = await _context.Users
+                .Where(e => e.ManagerId == manager.Id)
+                .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
+                .ToListAsync();
 
-            var employees = await _context.Users
-                .Where(e => grouped.Keys.Contains(e.Id))
-                .ToDictionaryAsync(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+            var grouped = allEmployees.ToDictionary(
+                e => e.Id,
+                e => schedules.Where(s => s.EmployeeId == e.Id).OrderBy(s => s.Date).ToList()
+            );
+
+            var employees = allEmployees.ToDictionary(e => e.Id, e => $"{e.FirstName} {e.LastName}");
 
             var leaveDays = await _context.LeaveRequests
                 .Where(r => r.Status == LeaveStatus.Approved &&
                             grouped.Keys.Contains(r.EmployeeId))
                 .ToListAsync();
 
+            // Przy filtrze zakresu pokazujemy wszystkie dni okresu (z pustymi komórkami do uzupełnienia),
+            // bez filtra – tylko dni, które mają już jakieś wpisy.
+            var dateList = (startDate.HasValue && endDate.HasValue)
+                ? GenerateDateRange(startDate.Value, endDate.Value)
+                : schedules.Select(s => s.Date.Date).Distinct().OrderBy(d => d).ToList();
+
             ViewBag.Employees = employees;
-            ViewBag.Dates = schedules.Select(s => s.Date.Date).Distinct().OrderBy(d => d).ToList();
+            ViewBag.Dates = dateList;
             ViewBag.LeaveDays = leaveDays.Select(r => (r.EmployeeId, r.Date.Date)).ToHashSet();
 
             return View(grouped);
@@ -536,6 +550,74 @@ namespace ShiftSchedulerMVC.Controllers
             entry.Shift = model.Shift;
             await _context.SaveChangesAsync();
 
+            return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpGet]
+        public async Task<IActionResult> AddSchedule(string employeeId, DateTime date)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            var employee = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == employeeId && u.ManagerId == manager.Id);
+            if (employee == null) return NotFound();
+
+            ViewBag.AllEmployees = await _context.Users
+                .Where(u => u.ManagerId == manager.Id)
+                .ToListAsync();
+
+            var model = new FinalizedSchedule
+            {
+                ManagerId = manager.Id,
+                EmployeeId = employeeId,
+                Date = date,
+                Shift = ShiftType.Morning
+            };
+
+            return View("EditSchedule", model);
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpPost]
+        public async Task<IActionResult> AddSchedule(FinalizedSchedule model)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+
+            // Pracownik musi należeć do tego menedżera.
+            var employee = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == model.EmployeeId && u.ManagerId == manager.Id);
+            if (employee == null) return NotFound();
+
+            if (model.Date == default)
+            {
+                TempData["Error"] = "Nieprawidłowa data zmiany.";
+                return RedirectToAction("Finalized");
+            }
+
+            // Nie dublujemy tej samej zmiany dla pracownika w tym samym dniu.
+            bool exists = await _context.FinalizedSchedules.AnyAsync(f =>
+                f.ManagerId == manager.Id &&
+                f.EmployeeId == model.EmployeeId &&
+                f.Date.Date == model.Date.Date &&
+                f.Shift == model.Shift);
+
+            if (exists)
+            {
+                TempData["Error"] = "Ten pracownik ma już przypisaną tę zmianę w wybranym dniu.";
+                return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+            }
+
+            _context.FinalizedSchedules.Add(new FinalizedSchedule
+            {
+                ManagerId = manager.Id,
+                EmployeeId = model.EmployeeId,
+                Date = model.Date,
+                Shift = model.Shift
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Dodano zmianę.";
             return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
         }
 

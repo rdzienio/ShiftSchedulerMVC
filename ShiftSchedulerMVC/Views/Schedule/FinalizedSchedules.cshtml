@@ -5,22 +5,9 @@
     var allDates = ViewBag.Dates as List<DateTime>;
     var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
 
-    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
-        shift == ShiftType.Morning ? ("1", "lightgreen") :
-        shift == ShiftType.Afternoon ? ("2", "khaki") :
-        shift == ShiftType.Night ? ("3", "lightblue") :
-        ("", "white");
-
     Func<DateTime, bool> isWeekend = date =>
         date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 }
-
-<style>
-    .weekend-header {
-        color: red;
-        font-weight: bold;
-    }
-</style>
 
 <h2>Zatwierdzony dzień</h2>
 
@@ -53,11 +40,9 @@
                     {
                         var key = (empId, date);
                         var entry = shifts.FirstOrDefault(s => s.Date.Date == date);
-                        var (code, color) = entry != null ? shiftInfo(entry.Shift) : ("", "white");
+                        var (code, cssClass) = ShiftDisplay.Table(entry?.Shift, leaveDays.Contains(key));
 
-                        var finalColor = leaveDays.Contains(key) ? "hotpink" : color;
-
-                        <td style="background-color:@finalColor">@code</td>
+                        <td class="@cssClass">@code</td>
                     }
                     <td>@totalHours</td>
                 </tr>
@@ -66,10 +51,4 @@
     </table>
 
 </form>
-<p>
-    <strong>Legenda:</strong>
-    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
-    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
-    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna
-    <span style="background-color:hotpink;padding:2px 6px;">&nbsp;</span> urlop
-</p>
+<partial name="_ShiftLegend" model="false" />

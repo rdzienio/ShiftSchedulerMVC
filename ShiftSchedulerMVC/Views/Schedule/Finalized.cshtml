@@ -6,12 +6,6 @@
     var dates = ViewBag.Dates as List<DateTime> ?? new();
     var leaveDays = ViewBag.LeaveDays as HashSet<(string, DateTime)> ?? new();
 
-    Func<ShiftType, (string Code, string Color)> shiftInfo = shift =>
-        shift == ShiftType.Morning ? ("1", "lightgreen") :
-        shift == ShiftType.Afternoon ? ("2", "khaki") :
-        shift == ShiftType.Night ? ("3", "lightblue") :
-        ("", "white");
-
     Func<DateTime, bool> isWeekend = date =>
         date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 }
@@ -44,6 +38,7 @@
                 var headerClass = isWeekend(date) ? "weekend-header" : "";
                 <th class="@headerClass">@date.ToString("dd.MM")</th>
             }
+            <th>Łącznie godzin</th>
         </tr>
     </thead>
     <tbody>
@@ -53,6 +48,10 @@
             var name = employees.ContainsKey(empId) ? employees[empId] : empId;
             var assignments = kvp.Value.ToDictionary(x => x.Date.Date, x => x.Shift);
 
+            var shiftHours = kvp.Value.Count * 8;
+            var leaveHours = leaveDays.Count(x => x.Item1 == empId && dates.Contains(x.Item2)) * 8;
+            var totalHours = shiftHours + leaveHours;
+
             <tr>
                 <td>@name</td>
                 @foreach (var date in dates)
@@ -60,10 +59,9 @@
                     var empKey = (empId, date);
                     var isOnLeave = leaveDays.Contains(empKey);
                     var assigned = assignments.ContainsKey(date);
-                    var (code, color) = assigned ? shiftInfo(assignments[date]) : ("", "white");
-                    var finalColor = isOnLeave ? "hotpink" : color;
+                    var (code, cssClass) = ShiftDisplay.Table(assigned ? assignments[date] : (ShiftType?)null, isOnLeave);
 
-                    <td style="background-color:@finalColor">
+                    <td class="@cssClass">
                         @if (assigned)
                         {
                             var id = Model[empId].FirstOrDefault(x => x.Date.Date == date.Date)?.Id;
@@ -71,21 +69,18 @@
                         }
                         else
                         {
-                            @code
+                            <a asp-action="AddSchedule" asp-route-employeeId="@empId"
+                               asp-route-date="@date.ToString("yyyy-MM-dd")"
+                               class="btn btn-sm btn-outline-success" title="Dodaj zmianę">+</a>
                         }
                     </td>
 
 
                 }
+                <td>@totalHours</td>
             </tr>
         }
     </tbody>
 </table>
 
-<p>
-    <strong>Legenda:</strong>
-    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
-    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
-    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna,
-    <span style="background-color:hotpink;padding:2px 6px;">&nbsp;</span> urlop
-</p>
+<partial name="_ShiftLegend" model="false" />

@@ -8,19 +8,6 @@
     var firstDayOfWeek = new DateTime(year, month, 1).DayOfWeek;
     int padding = ((int)firstDayOfWeek + 6) % 7; // poniedziałek = 0
     var name = ViewBag.Employee as string;
-
-    Func<ShiftType?, bool, (string Code, string Color)> shiftInfo = (shift, isLeave) =>
-    {
-        if (isLeave) return ("U", "hotpink");
-
-        return shift switch
-        {
-            ShiftType.Morning => ("1", "lightgreen"),
-            ShiftType.Afternoon => ("2", "khaki"),
-            ShiftType.Night => ("3", "lightblue"),
-            _ => ("W", "white")
-        };
-    };
 }
 
 <h2>@name – @(new DateTime(year, month, 1).ToString("MMMM yyyy"))</h2>
@@ -63,9 +50,9 @@
                         {
                             var date = new DateTime(year, month, day);
                             var entry = days.FirstOrDefault(d => d.Date.Date == date);
-                            var (code, color) = shiftInfo(entry?.Shift, entry?.IsOnLeave ?? false);
+                            var (code, cssClass) = ShiftDisplay.Calendar(entry?.Shift, entry?.IsOnLeave ?? false);
 
-                            <td style="background-color:@color">
+                            <td class="@cssClass">
                                 <strong>@day</strong><br />
                                 @code
                             </td>
@@ -78,11 +65,4 @@
     </tbody>
 </table>
 
-<p>
-    <strong>Legenda:</strong><br />
-    <span style="background-color:lightgreen;padding:2px 6px;">1</span> poranna,
-    <span style="background-color:khaki;padding:2px 6px;">2</span> popołudniowa,
-    <span style="background-color:lightblue;padding:2px 6px;">3</span> nocna,
-    <span style="background-color:hotpink;padding:2px 6px;">U</span> urlop,
-    <span style="background-color:white;border:1px solid #ccc;padding:2px 6px;">W</span> wolne
-</p>
+<partial name="_ShiftLegend" model="true" />

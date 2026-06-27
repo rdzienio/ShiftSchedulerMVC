@@ -6,7 +6,12 @@ using ShiftSchedulerMVC.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Po³¹czenie do SQLite
+// Aplikacja jest polskojÄ™zyczna â€“ wymuszamy pl-PL (np. nazwy miesiÄ™cy w kalendarzu)
+var plCulture = new System.Globalization.CultureInfo("pl-PL");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = plCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = plCulture;
+
+// Poï¿½ï¿½czenie do SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -75,7 +80,7 @@ app.MapControllerRoute(
 
 app.MapRazorPages();
 
-//WYMUSZAMY migracjê i seeding ról + admina
+//WYMUSZAMY migracjï¿½ i seeding rï¿½l + admina
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

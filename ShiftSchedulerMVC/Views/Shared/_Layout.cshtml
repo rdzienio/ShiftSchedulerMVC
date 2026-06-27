@@ -5,7 +5,7 @@
 
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,7 +25,6 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
@@ -38,10 +37,10 @@
                                 <a class="nav-link text-dark" asp-controller="Schedule" asp-action="MyCalendar">Mój kalendarz</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Schedule" asp-action="MySchedule">Mój harmonogram</a>
+                                <a class="nav-link text-dark" asp-controller="Schedule" asp-action="MySchedule">Mój harmonogram</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Leave" asp-action="MyRequests">Wnioski urlopowe</a>
+                                <a class="nav-link text-dark" asp-controller="Leave" asp-action="MyRequests">Wnioski urlopowe</a>
                             </li>
                         }
                         @if (User.IsInRole("Manager"))
@@ -50,16 +49,16 @@
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="Index">Generuj harmonogram</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Schedule" asp-action="ApprovedSchedules">Harmonogramy</a>
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Schedule" asp-action="ApprovedSchedules">Harmonogramy</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Manager" asp-action="EmployeeList">Zespół</a>
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Manager" asp-action="EmployeeList">Zespół</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Manager" asp-action="LeaveRequests">Wnioski urlopowe</a>
+                                <a class="nav-link text-dark" asp-controller="Manager" asp-action="LeaveRequests">Wnioski urlopowe</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="HolidayOverride" asp-action="Index">Zaawansowane</a>
+                                <a class="nav-link text-dark" asp-controller="HolidayOverride" asp-action="Index">Zaawansowane</a>
                             </li>
                         }
 
@@ -92,13 +91,14 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            <partial name="_Alerts" />
             @RenderBody()
         </main>
     </div>
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2025 - Robert Dzienio - ShiftSchedulerMVC - <a asp-area="" asp-controller="Schedule" asp-action="Index">Generuj</a>
+            &copy; @DateTime.Now.Year - Robert Dzienio - ShiftSchedulerMVC - <a asp-area="" asp-controller="Schedule" asp-action="Index">Generuj</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
