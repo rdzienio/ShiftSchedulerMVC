@@ -31,7 +31,7 @@
                 var name = employees.ContainsKey(empId) ? employees[empId] : empId;
                 var shifts = kvp.Value;
 
-                var shiftHours = shifts.Count * 8;
+                var shiftHours = shifts.Sum(s => ShiftDisplay.DurationHours(s.Shift));
                 var leaveHours = leaveDays.Count(x => x.Item1 == empId && allDates.Contains(x.Item2)) * 8;
                 var totalHours = shiftHours + leaveHours;
                 <tr>

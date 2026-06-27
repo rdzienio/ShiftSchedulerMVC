@@ -30,6 +30,16 @@
         <input asp-for="NightCount" class="form-control" />
     </div>
 
+    <div class="mb-3">
+        <label asp-for="Day12Count" class="form-label">Liczba osób (dzienna 12h)</label>
+        <input asp-for="Day12Count" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Night12Count" class="form-label">Liczba osób (nocna 12h)</label>
+        <input asp-for="Night12Count" class="form-control" />
+    </div>
+
     <button type="submit" class="btn btn-primary mt-3">
         @(isEdit ? "Zapisz zmiany" : "Dodaj")
     </button>

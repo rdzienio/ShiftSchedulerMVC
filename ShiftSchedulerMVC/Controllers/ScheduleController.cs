@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using ShiftSchedulerMVC.Data;
+using ShiftSchedulerMVC.Helpers;
 using ShiftSchedulerMVC.Models;
 using ShiftSchedulerMVC.Services;
 
@@ -51,7 +52,9 @@ namespace ShiftSchedulerMVC.Controllers
                 {
                     { ShiftType.Morning, h.MorningCount },
                     { ShiftType.Afternoon, h.AfternoonCount },
-                    { ShiftType.Night, h.NightCount }
+                    { ShiftType.Night, h.NightCount },
+                    { ShiftType.Day12, h.Day12Count },
+                    { ShiftType.Night12, h.Night12Count }
                 });
 
 
@@ -66,17 +69,24 @@ namespace ShiftSchedulerMVC.Controllers
                 int afternoon = input.AfternoonCount;
                 int night = input.NightCount;
 
+                int day12 = input.Day12Count;
+                int night12 = input.Night12Count;
+
                 if (isSaturday)
                 {
                     morning = input.SaturdayMorningCount;
                     afternoon = input.SaturdayAfternoonCount;
                     night = input.SaturdayNightCount;
+                    day12 = input.SaturdayDay12Count;
+                    night12 = input.SaturdayNight12Count;
                 }
                 else if (isSunday)
                 {
                     morning = input.SundayMorningCount;
                     afternoon = input.SundayAfternoonCount;
                     night = input.SundayNightCount;
+                    day12 = input.SundayDay12Count;
+                    night12 = input.SundayNight12Count;
                 }
 
                 shiftRequirements[date] = new Dictionary<ShiftType, int>
@@ -85,6 +95,16 @@ namespace ShiftSchedulerMVC.Controllers
                     { ShiftType.Afternoon, overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Afternoon] : afternoon },
                     { ShiftType.Night, overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Night] : night }
                 };
+
+                // Sloty 12h dokładamy TYLKO, gdy są wymagane (>0). Dzięki temu grafik bez zmian 12h
+                // ma identyczny zestaw wymagań (3 klucze) jak wcześniej → ten sam wynik dla seeda.
+                // Gdy dla danego dnia istnieje nadpisanie świąteczne, wartości 12h też bierzemy z niego.
+                int finalDay12 = overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Day12] : day12;
+                int finalNight12 = overrideDict.ContainsKey(date) ? overrideDict[date][ShiftType.Night12] : night12;
+                if (finalDay12 > 0)
+                    shiftRequirements[date][ShiftType.Day12] = finalDay12;
+                if (finalNight12 > 0)
+                    shiftRequirements[date][ShiftType.Night12] = finalNight12;
             }
 
 
@@ -122,9 +142,9 @@ namespace ShiftSchedulerMVC.Controllers
 
 
             var employeeHours = result.Genes
-                .SelectMany(g => g.AssignedEmployees.Select(e => e.Id))
-                .GroupBy(id => id)
-                .ToDictionary(g => g.Key, g => g.Count() * 8);
+                .SelectMany(g => g.AssignedEmployees.Select(e => new { e.Id, g.Shift }))
+                .GroupBy(x => x.Id)
+                .ToDictionary(g => g.Key, g => g.Sum(x => ShiftDisplay.DurationHours(x.Shift)));
             var leaveInRange = _context.LeaveRequests
             .Where(r => r.Status == LeaveStatus.Approved &&
                 r.Date >= input.StartDate &&
@@ -432,7 +452,7 @@ namespace ShiftSchedulerMVC.Controllers
             // Liczby godzin
             var employeeHours = schedules
                 .GroupBy(s => s.EmployeeId)
-                .ToDictionary(g => g.Key, g => g.Count() * 8);
+                .ToDictionary(g => g.Key, g => g.Sum(s => ShiftDisplay.DurationHours(s.Shift)));
 
             ViewBag.EmployeeHours = employeeHours;
 
@@ -551,6 +571,24 @@ namespace ShiftSchedulerMVC.Controllers
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpPost]
+        public async Task<IActionResult> DeleteSchedule(int id)
+        {
+            var manager = await _userManager.GetUserAsync(User);
+            var entry = await _context.FinalizedSchedules
+                .FirstOrDefaultAsync(f => f.Id == id && f.ManagerId == manager.Id);
+
+            if (entry == null) return NotFound();
+
+            var date = entry.Date;
+            _context.FinalizedSchedules.Remove(entry);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Usunięto zmianę.";
+            return RedirectToAction("Finalized", new { startDate = date, endDate = date });
         }
 
         [Authorize(Roles = "Manager")]

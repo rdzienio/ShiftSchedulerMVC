@@ -17,6 +17,10 @@ namespace ShiftSchedulerMVC.Models
         public int AfternoonCount { get; set; } = 0;
         [Required]
         public int NightCount { get; set; } = 0;
+        [Required]
+        public int Day12Count { get; set; } = 0;
+        [Required]
+        public int Night12Count { get; set; } = 0;
         [ValidateNever]
         public ApplicationUser Manager { get; set; }
     }

@@ -1,4 +1,5 @@
-﻿using ShiftSchedulerMVC.Models;
+﻿using ShiftSchedulerMVC.Helpers;
+using ShiftSchedulerMVC.Models;
 using System.Diagnostics;
 
 namespace ShiftSchedulerMVC.Services
@@ -232,7 +233,7 @@ namespace ShiftSchedulerMVC.Services
                 foreach (var emp in gene.AssignedEmployees)
                 {
                     if (!employeeHours.ContainsKey(emp.Id)) employeeHours[emp.Id] = 0;
-                    employeeHours[emp.Id] += 8;
+                    employeeHours[emp.Id] += GetShiftDuration(gene.Shift);
 
                     var key = (emp.Id, gene.Date.Date);
                     if (!dailyAssignments.ContainsKey(key)) dailyAssignments[key] = 0;
@@ -249,6 +250,8 @@ namespace ShiftSchedulerMVC.Services
                 }
             }
 
+            // Dzień urlopu liczymy jako standardowe 8h (dzień wolny wg Kodeksu pracy),
+            // niezależnie od długości zmian w grafiku - to nie jest przeoczony refaktor 8→długość.
             foreach (var (empId, date) in vacationDays)
             {
                 if (!employeeHours.ContainsKey(empId))
@@ -647,7 +650,7 @@ namespace ShiftSchedulerMVC.Services
             // miesięcy: 35h odpoczynku, max 5 dni z rzędu i zgodność zmian (po nocnej tylko nocna).
             SeedFromPriorShifts(priorShifts, lastShiftMap, workState, shiftHistory);
 
-            // Urlopy
+            // Urlopy - dzień wolny = standardowe 8h (jak w EvaluateFitness), niezależnie od długości zmian.
             foreach (var (empId, date) in vacationDays)
                 if (employeeHours.ContainsKey(empId))
                     employeeHours[empId] += 8;
@@ -680,7 +683,7 @@ namespace ShiftSchedulerMVC.Services
                     }
 
                     // 🧮 Limit godzin pracy (hard constraint, nie tylko kara w fitness)
-                    if (employeeHours[emp.Id] + 8 > workingHours)
+                    if (employeeHours[emp.Id] + GetShiftDuration(gene.Shift) > workingHours)
                     {
                         gene.AssignedEmployees.Remove(emp);
                         continue;
@@ -700,7 +703,7 @@ namespace ShiftSchedulerMVC.Services
                         continue;
                     }
 
-                    employeeHours[emp.Id] += 8;
+                    employeeHours[emp.Id] += GetShiftDuration(gene.Shift);
                     dailyAssignments.Add(key);
                     lastShiftMap[emp.Id] = (gene.Date, gene.Shift);
                     RegisterWorkedDay(emp.Id, date, workState);
@@ -731,7 +734,7 @@ namespace ShiftSchedulerMVC.Services
                         .Where(e =>
                             !vacationDays.Contains((e.Id, date)) &&
                             !dailyAssignments.Contains((e.Id, date)) &&
-                            employeeHours[e.Id] + 8 <= workingHours &&
+                            employeeHours[e.Id] + GetShiftDuration(gene.Shift) <= workingHours &&
                             IsEligibleAfterPreviousShift(e.Id, gene.Date, gene.Shift, lastShiftMap) &&
                             !WouldExceedMaxConsecutiveDays(e.Id, date, workState) &&
                             !WouldViolateWeeklyRest(e.Id, date, gene.Shift, shiftHistory))
@@ -742,7 +745,7 @@ namespace ShiftSchedulerMVC.Services
 
                     var emp = available.First();
                     gene.AssignedEmployees.Add(emp);
-                    employeeHours[emp.Id] += 8;
+                    employeeHours[emp.Id] += GetShiftDuration(gene.Shift);
                     dailyAssignments.Add((emp.Id, date));
                     lastShiftMap[emp.Id] = (gene.Date, gene.Shift);
                     RegisterWorkedDay(emp.Id, date, workState);
@@ -758,7 +761,7 @@ namespace ShiftSchedulerMVC.Services
                         .Where(e =>
                             !vacationDays.Contains((e.Id, date)) &&
                             !dailyAssignments.Contains((e.Id, date)) &&
-                            employeeHours[e.Id] + 8 <= workingHours &&
+                            employeeHours[e.Id] + GetShiftDuration(gene.Shift) <= workingHours &&
                             IsEligibleAfterPreviousShift(e.Id, gene.Date, gene.Shift, lastShiftMap) &&
                             !WouldExceedMaxConsecutiveDays(e.Id, date, workState) &&
                             !WouldViolateWeeklyRest(e.Id, date, gene.Shift, shiftHistory))
@@ -778,7 +781,7 @@ namespace ShiftSchedulerMVC.Services
                     {
                         var extra = potentialExtras.First();
                         gene.AssignedEmployees.Add(extra);
-                        employeeHours[extra.Id] += 8;
+                        employeeHours[extra.Id] += GetShiftDuration(gene.Shift);
                         dailyAssignments.Add((extra.Id, date));
                         lastShiftMap[extra.Id] = (gene.Date, gene.Shift);
                         RegisterWorkedDay(extra.Id, date, workState);
@@ -800,6 +803,8 @@ namespace ShiftSchedulerMVC.Services
                 ShiftType.Morning => date.Date.AddHours(6),
                 ShiftType.Afternoon => date.Date.AddHours(14),
                 ShiftType.Night => date.Date.AddHours(22),
+                ShiftType.Day12 => date.Date.AddHours(6),
+                ShiftType.Night12 => date.Date.AddHours(18),
                 _ => date
             };
         }
@@ -811,9 +816,15 @@ namespace ShiftSchedulerMVC.Services
                 ShiftType.Morning => date.Date.AddHours(14),
                 ShiftType.Afternoon => date.Date.AddHours(22),
                 ShiftType.Night => date.Date.AddDays(1).AddHours(6),
+                ShiftType.Day12 => date.Date.AddHours(18),
+                ShiftType.Night12 => date.Date.AddDays(1).AddHours(6),
                 _ => date
             };
         }
+
+        // ⏱️ Długość zmiany w godzinach – deleguje do wspólnego ShiftDisplay.DurationHours,
+        // żeby algorytm i widoki liczyły godziny z jednej definicji (8h vs 12h).
+        private static int GetShiftDuration(ShiftType shift) => ShiftDisplay.DurationHours(shift);
 
         private static List<Chromosome> SmartInitialPopulation(
     int populationSize,
@@ -851,12 +862,15 @@ namespace ShiftSchedulerMVC.Services
                 {
                     foreach (ShiftType shift in Enum.GetValues(typeof(ShiftType)))
                     {
-                        var gene = new Gene { Date = date, Shift = shift };
-                        chrom.Genes.Add(gene);
-
+                        // Gen tworzymy tylko dla typów zmian, na które danego dnia jest zapotrzebowanie.
+                        // Dla siatki 8h (bez slotów 12h w wymaganiach) struktura genów jest identyczna
+                        // jak wcześniej, więc strumień RNG i wyniki pozostają niezmienione.
                         if (!shiftRequirements.TryGetValue(date, out var dayReqs) ||
                             !dayReqs.TryGetValue(shift, out int required))
                             continue;
+
+                        var gene = new Gene { Date = date, Shift = shift };
+                        chrom.Genes.Add(gene);
 
                         int attempts = 0;
                         while (gene.AssignedEmployees.Count < required && attempts < 100)
@@ -866,11 +880,11 @@ namespace ShiftSchedulerMVC.Services
 
                             if (vacationDays.Contains((emp.Id, date.Date))) { attempts++; continue; }
                             if (dailyAssignments.Contains(key)) { attempts++; continue; }
-                            if (employeeHours[emp.Id] + 8 > workingHours) { attempts++; continue; }
+                            if (employeeHours[emp.Id] + GetShiftDuration(shift) > workingHours) { attempts++; continue; }
                             if (!IsEligibleAfterPreviousShift(emp.Id, date, shift, lastShiftMap)) { attempts++; continue; }
 
                             gene.AssignedEmployees.Add(emp);
-                            employeeHours[emp.Id] += 8;
+                            employeeHours[emp.Id] += GetShiftDuration(shift);
                             dailyAssignments.Add(key);
                             lastShiftMap[emp.Id] = (date, shift);
                             attempts++;
@@ -884,7 +898,7 @@ namespace ShiftSchedulerMVC.Services
                                 .Where(e =>
                                     !vacationDays.Contains((e.Id, date)) &&
                                     !dailyAssignments.Contains((e.Id, date)) &&
-                                    employeeHours[e.Id] + 8 <= workingHours &&
+                                    employeeHours[e.Id] + GetShiftDuration(gene.Shift) <= workingHours &&
                                     IsEligibleAfterPreviousShift(e.Id, gene.Date, gene.Shift, lastShiftMap))
                                 .OrderBy(_ => rng.Next())
                                 .ToList();
@@ -893,7 +907,7 @@ namespace ShiftSchedulerMVC.Services
                             {
                                 var extra = potentialExtras.First();
                                 gene.AssignedEmployees.Add(extra);
-                                employeeHours[extra.Id] += 8;
+                                employeeHours[extra.Id] += GetShiftDuration(shift);
                                 dailyAssignments.Add((extra.Id, date));
                                 lastShiftMap[extra.Id] = (date, shift);
                             }
@@ -950,29 +964,32 @@ namespace ShiftSchedulerMVC.Services
             return weight;
         }
 
+        // 🛌 Minimalny odpoczynek między zmianami z sąsiednich dni. 12h pokrywa zarówno
+        // kodeksowe 11h, jak i wewnętrzny próg miękkiej kary (ShortRestDaily < 12h),
+        // więc twardy filtr nie przepuszcza układów, które i tak byłyby karane.
+        private const int MinRestBetweenShiftsHours = 12;
+
         private static bool IsEligibleAfterPreviousShift(string empId, DateTime currentDate, ShiftType currentShift, Dictionary<string, (DateTime date, ShiftType shift)> lastShiftMap)
         {
             if (!lastShiftMap.TryGetValue(empId, out var lastShift))
                 return true;
 
-            var lastDate = lastShift.date.Date;
-            var today = currentDate.Date;
+            var dayDiff = (currentDate.Date - lastShift.date.Date).Days;
 
-            var dayDiff = (today - lastDate).Days;
+            // Reguła dotyczy następstwa zmian z SĄSIEDNICH dni. Ten sam dzień (dayDiff == 0) to
+            // podwójna zmiana - odsiewana osobno przez dailyAssignments. Przerwa ≥ 2 dni = na pewno OK.
+            if (dayDiff != 1)
+                return true;
 
-            // 👇 Zakładamy że rozpatrujemy kolejne dni – wszystko tego samego dnia już i tak odpada
-            if (dayDiff == 1)
-            {
-                // ⛔ Po nocnej tylko nocna
-                if (lastShift.shift == ShiftType.Night && currentShift != ShiftType.Night)
-                    return false;
+            // Odpoczynek liczony z RZECZYWISTYCH godzin zmian, więc działa identycznie dla 8h i 12h.
+            // Zastępuje wcześniejsze reguły zaszyte pod siatkę 3x8h ("po nocnej tylko nocna",
+            // "po popołudniowej nie poranna"): dla zmian 8h daje te same wyniki (żaden ich układ
+            // nie ma przerwy w przedziale 9-15h), a dodatkowo poprawnie blokuje 12h
+            // (np. po Night12 18-06 nie można Day12 06-18: 0h przerwy).
+            double restHours = (GetShiftStart(currentDate, currentShift)
+                                - GetShiftEnd(lastShift.date, lastShift.shift)).TotalHours;
 
-                // ⛔ Po popołudniowej nie można porannej
-                if (lastShift.shift == ShiftType.Afternoon && currentShift == ShiftType.Morning)
-                    return false;
-            }
-
-            return true;
+            return restHours >= MinRestBetweenShiftsHours;
         }
 
         private static bool IsMaxConsecutiveHoursValid(string empId, DateTime date, ShiftType shift, Dictionary<string, (DateTime date, ShiftType shift)> lastShiftMap)

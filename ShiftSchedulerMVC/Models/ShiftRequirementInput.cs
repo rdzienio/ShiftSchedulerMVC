@@ -19,6 +19,19 @@ namespace ShiftSchedulerMVC.Models
         public int SundayAfternoonCount { get; set; } = 0;
         public int SundayNightCount { get; set; } = 0;
 
+        // === Zmiany 12-godzinne (działają równolegle z 8h; 0 = brak takiego slotu) ===
+        // Dni robocze
+        public int Day12Count { get; set; } = 0;
+        public int Night12Count { get; set; } = 0;
+
+        // 12h – sobota
+        public int SaturdayDay12Count { get; set; } = 0;
+        public int SaturdayNight12Count { get; set; } = 0;
+
+        // 12h – niedziela
+        public int SundayDay12Count { get; set; } = 0;
+        public int SundayNight12Count { get; set; } = 0;
+
         //public int EmployeeCount { get; set; } = 9;
         public int NumberOfDays { get; set; } = 31;
 
