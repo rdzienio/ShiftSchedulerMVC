@@ -545,9 +545,19 @@ namespace ShiftSchedulerMVC.Controllers
             return RedirectToAction("ApprovedSchedules");
         }
 
+        // 🔙 Powrót do widoku "Edytuj dzień" w TYM SAMYM zakresie, z którego przyszedł użytkownik
+        // (np. cały miesiąc). Gdy zakresu brak, wraca do pojedynczego dnia jako sensowny fallback.
+        private IActionResult RedirectToFinalizedRange(DateTime? returnStart, DateTime? returnEnd, DateTime fallbackDate)
+        {
+            if (returnStart.HasValue && returnEnd.HasValue)
+                return RedirectToAction("Finalized", new { startDate = returnStart.Value, endDate = returnEnd.Value });
+
+            return RedirectToAction("Finalized", new { startDate = fallbackDate, endDate = fallbackDate });
+        }
+
         [Authorize(Roles = "Manager")]
         [HttpGet]
-        public async Task<IActionResult> EditSchedule(int id)
+        public async Task<IActionResult> EditSchedule(int id, DateTime? returnStart, DateTime? returnEnd)
         {
             var entry = await _context.FinalizedSchedules.Include(f => f.Employee).FirstOrDefaultAsync(f => f.Id == id);
             if (entry == null) return NotFound();
@@ -556,12 +566,15 @@ namespace ShiftSchedulerMVC.Controllers
                 .Where(u => u.ManagerId == entry.ManagerId)
                 .ToListAsync();
 
+            ViewBag.ReturnStart = returnStart;
+            ViewBag.ReturnEnd = returnEnd;
+
             return View(entry);
         }
 
         [Authorize(Roles = "Manager")]
         [HttpPost]
-        public async Task<IActionResult> EditSchedule(FinalizedSchedule model)
+        public async Task<IActionResult> EditSchedule(FinalizedSchedule model, DateTime? returnStart, DateTime? returnEnd)
         {
             var entry = await _context.FinalizedSchedules.FindAsync(model.Id);
             if (entry == null) return NotFound();
@@ -570,12 +583,12 @@ namespace ShiftSchedulerMVC.Controllers
             entry.Shift = model.Shift;
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+            return RedirectToFinalizedRange(returnStart, returnEnd, model.Date);
         }
 
         [Authorize(Roles = "Manager")]
         [HttpPost]
-        public async Task<IActionResult> DeleteSchedule(int id)
+        public async Task<IActionResult> DeleteSchedule(int id, DateTime? returnStart, DateTime? returnEnd)
         {
             var manager = await _userManager.GetUserAsync(User);
             var entry = await _context.FinalizedSchedules
@@ -588,12 +601,12 @@ namespace ShiftSchedulerMVC.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Usunięto zmianę.";
-            return RedirectToAction("Finalized", new { startDate = date, endDate = date });
+            return RedirectToFinalizedRange(returnStart, returnEnd, date);
         }
 
         [Authorize(Roles = "Manager")]
         [HttpGet]
-        public async Task<IActionResult> AddSchedule(string employeeId, DateTime date)
+        public async Task<IActionResult> AddSchedule(string employeeId, DateTime date, DateTime? returnStart, DateTime? returnEnd)
         {
             var manager = await _userManager.GetUserAsync(User);
 
@@ -604,6 +617,9 @@ namespace ShiftSchedulerMVC.Controllers
             ViewBag.AllEmployees = await _context.Users
                 .Where(u => u.ManagerId == manager.Id)
                 .ToListAsync();
+
+            ViewBag.ReturnStart = returnStart;
+            ViewBag.ReturnEnd = returnEnd;
 
             var model = new FinalizedSchedule
             {
@@ -618,7 +634,7 @@ namespace ShiftSchedulerMVC.Controllers
 
         [Authorize(Roles = "Manager")]
         [HttpPost]
-        public async Task<IActionResult> AddSchedule(FinalizedSchedule model)
+        public async Task<IActionResult> AddSchedule(FinalizedSchedule model, DateTime? returnStart, DateTime? returnEnd)
         {
             var manager = await _userManager.GetUserAsync(User);
 
@@ -630,7 +646,7 @@ namespace ShiftSchedulerMVC.Controllers
             if (model.Date == default)
             {
                 TempData["Error"] = "Nieprawidłowa data zmiany.";
-                return RedirectToAction("Finalized");
+                return RedirectToFinalizedRange(returnStart, returnEnd, DateTime.Today);
             }
 
             // Nie dublujemy tej samej zmiany dla pracownika w tym samym dniu.
@@ -643,7 +659,7 @@ namespace ShiftSchedulerMVC.Controllers
             if (exists)
             {
                 TempData["Error"] = "Ten pracownik ma już przypisaną tę zmianę w wybranym dniu.";
-                return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+                return RedirectToFinalizedRange(returnStart, returnEnd, model.Date);
             }
 
             _context.FinalizedSchedules.Add(new FinalizedSchedule
@@ -656,7 +672,7 @@ namespace ShiftSchedulerMVC.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Dodano zmianę.";
-            return RedirectToAction("Finalized", new { startDate = model.Date, endDate = model.Date });
+            return RedirectToFinalizedRange(returnStart, returnEnd, model.Date);
         }
 
         [Authorize(Roles = "Employee")]

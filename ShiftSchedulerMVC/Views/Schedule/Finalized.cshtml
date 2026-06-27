@@ -8,6 +8,11 @@
 
     Func<DateTime, bool> isWeekend = date =>
         date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+
+    // Zakres aktualnie wyświetlanego okna - przekazywany do edycji/dodawania/usuwania,
+    // żeby po akcji wrócić do TEGO SAMEGO widoku (np. całego miesiąca), a nie do jednego dnia.
+    var rangeStart = dates.Any() ? dates.First() : DateTime.Today;
+    var rangeEnd = dates.Any() ? dates.Last() : DateTime.Today;
 }
 
 <h2>Edytuj dzień</h2>
@@ -65,12 +70,17 @@
                         @if (assigned)
                         {
                             var id = Model[empId].FirstOrDefault(x => x.Date.Date == date.Date)?.Id;
-                            <a asp-action="EditSchedule" asp-route-id="@id" class="btn btn-sm btn-outline-secondary">@code</a>
+                            <a asp-action="EditSchedule" asp-route-id="@id"
+                               asp-route-returnStart="@rangeStart.ToString("yyyy-MM-dd")"
+                               asp-route-returnEnd="@rangeEnd.ToString("yyyy-MM-dd")"
+                               class="btn btn-sm btn-outline-secondary">@code</a>
                         }
                         else
                         {
                             <a asp-action="AddSchedule" asp-route-employeeId="@empId"
                                asp-route-date="@date.ToString("yyyy-MM-dd")"
+                               asp-route-returnStart="@rangeStart.ToString("yyyy-MM-dd")"
+                               asp-route-returnEnd="@rangeEnd.ToString("yyyy-MM-dd")"
                                class="btn btn-sm btn-outline-success" title="Dodaj zmianę">+</a>
                         }
                     </td>
