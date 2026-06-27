@@ -100,7 +100,19 @@ namespace ShiftSchedulerMVC.Controllers
                 .SelectMany(kvp => kvp.Value.Select(date => (empId: kvp.Key, date)))
                 .ToHashSet();
 
-            var result = GeneticScheduler.Run(employees, dates, shiftRequirements, input.WorkingHours, vacationDays);
+            // 🗓️ Ostatnie 7 dni z zatwierdzonego grafiku poprzedniego okresu - żeby reguły
+            // sekwencyjne (35h odpoczynku, max 5 dni z rzędu, po nocnej tylko nocna) działały
+            // przez granicę miesięcy, a nie zerowały się na 1. dniu nowego horyzontu.
+            var priorStart = input.StartDate.Date.AddDays(-7);
+            var priorEnd = input.StartDate.Date.AddDays(-1);
+            var priorShifts = (await _context.FinalizedSchedules
+                .Where(s => s.ManagerId == manager.Id && s.Date >= priorStart && s.Date <= priorEnd)
+                .Select(s => new { s.EmployeeId, s.Date, s.Shift })
+                .ToListAsync())
+                .Select(s => (s.EmployeeId, s.Date, s.Shift))
+                .ToList();
+
+            var result = GeneticScheduler.Run(employees, dates, shiftRequirements, input.WorkingHours, vacationDays, priorShifts: priorShifts);
 
 
 
@@ -145,7 +157,7 @@ namespace ShiftSchedulerMVC.Controllers
         Shift = g.Shift
     }))
     .ToList();
-            var fitness = GeneticScheduler.EvaluateFitnessWrapper(result, shiftRequirements, input.WorkingHours, vacationDays);
+            var fitness = GeneticScheduler.EvaluateFitnessWrapper(result, shiftRequirements, input.WorkingHours, vacationDays, employees);
             ViewBag.FitnessScore = fitness;
 
 
