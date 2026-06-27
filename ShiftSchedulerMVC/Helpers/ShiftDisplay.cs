@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using ShiftSchedulerMVC.Models;
 
 namespace ShiftSchedulerMVC.Helpers
@@ -41,6 +43,24 @@ namespace ShiftSchedulerMVC.Helpers
             ShiftType.Night12 => 12,
             _ => 8
         };
+
+        /// <summary>
+        /// Czytelny zakres godzin zmiany ("HH:00–HH:00") liczony z aktualnej konfiguracji
+        /// (godzina startu z ShiftTimes + stała długość). Używany w etykietach i legendzie.
+        /// </summary>
+        public static string TimeRange(ShiftType shift)
+        {
+            int start = ShiftTimes.StartHour(shift);
+            int end = (start + DurationHours(shift)) % 24;
+            return $"{start:00}:00–{end:00}:00";
+        }
+
+        /// <summary>Czytelna nazwa zmiany z atrybutu [Display] enuma (fallback: nazwa wartości).</summary>
+        public static string Name(ShiftType shift)
+        {
+            var member = typeof(ShiftType).GetMember(shift.ToString()).FirstOrDefault();
+            return member?.GetCustomAttribute<DisplayAttribute>()?.Name ?? shift.ToString();
+        }
 
         /// <summary>
         /// Widok tabelaryczny (Drafts/Result): puste komórki pozostają bez treści.

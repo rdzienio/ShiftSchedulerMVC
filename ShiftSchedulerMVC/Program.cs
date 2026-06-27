@@ -87,6 +87,7 @@ using (var scope = app.Services.CreateScope())
     var db = services.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate(); //tworzy tabelki
     await DbInitializer.SeedRolesAndAdminAsync(services);
+    await DbInitializer.SeedAndLoadShiftTimesAsync(db); // godziny startu zmian → cache ShiftTimes
 }
 
 app.Run();

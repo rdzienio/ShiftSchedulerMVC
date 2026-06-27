@@ -1,10 +1,35 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using ShiftSchedulerMVC.Helpers;
 using ShiftSchedulerMVC.Models;
 
 namespace ShiftSchedulerMVC.Data
 {
     public static class DbInitializer
     {
+        /// <summary>
+        /// Zapewnia po jednym wierszu dla każdego typu zmiany (z wartościami domyślnymi),
+        /// a następnie ładuje godziny startu do cache'u ShiftTimes.
+        /// </summary>
+        public static async Task SeedAndLoadShiftTimesAsync(ApplicationDbContext db)
+        {
+            foreach (ShiftType shift in Enum.GetValues<ShiftType>())
+            {
+                if (!await db.ShiftTimeSettings.AnyAsync(s => s.ShiftType == shift))
+                {
+                    db.ShiftTimeSettings.Add(new ShiftTimeSetting
+                    {
+                        ShiftType = shift,
+                        StartHour = ShiftTimes.DefaultStartHour(shift)
+                    });
+                }
+            }
+            await db.SaveChangesAsync();
+
+            var settings = await db.ShiftTimeSettings.ToDictionaryAsync(s => s.ShiftType, s => s.StartHour);
+            ShiftTimes.Load(settings);
+        }
+
         public static async Task SeedRolesAndAdminAsync(IServiceProvider serviceProvider)
         {
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();

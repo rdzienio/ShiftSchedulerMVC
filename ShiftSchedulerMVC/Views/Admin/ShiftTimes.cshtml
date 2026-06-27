@@ -1,0 +1,48 @@
+@model ShiftSchedulerMVC.Models.ShiftTimeSettingsViewModel
+@{
+    ViewData["Title"] = "Godziny rozpoczęcia zmian";
+}
+
+<h2>Godziny rozpoczęcia zmian</h2>
+<p class="text-muted">
+    Ustaw godzinę rozpoczęcia każdej zmiany (pełne godziny 0–23). Długość zmian jest stała
+    (8h / 12h), więc koniec wyliczany jest automatycznie. Zmiana dotyczy całej aplikacji.
+</p>
+
+<form asp-action="ShiftTimes" method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <table class="table table-bordered align-middle" style="max-width: 640px;">
+        <thead class="table-light">
+            <tr>
+                <th>Zmiana</th>
+                <th>Długość</th>
+                <th>Godzina startu</th>
+                <th>Zakres</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Model.Shifts.Count; i++)
+            {
+                var st = Model.Shifts[i].ShiftType;
+                <tr>
+                    <td>@ShiftDisplay.Name(st)</td>
+                    <td>@ShiftDisplay.DurationHours(st)h</td>
+                    <td style="max-width: 120px;">
+                        <input type="hidden" asp-for="Shifts[i].ShiftType" />
+                        <input asp-for="Shifts[i].StartHour" type="number" min="0" max="23" class="form-control" />
+                        <span asp-validation-for="Shifts[i].StartHour" class="text-danger"></span>
+                    </td>
+                    <td>@ShiftDisplay.TimeRange(st)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary">Zapisz</button>
+    <a asp-action="Index" class="btn btn-secondary">Anuluj</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

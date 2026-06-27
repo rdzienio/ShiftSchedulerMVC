@@ -796,31 +796,14 @@ namespace ShiftSchedulerMVC.Services
 
 
 
+        // Start zmiany = data + skonfigurowana godzina startu (globalny cache ShiftTimes).
         private static DateTime GetShiftStart(DateTime date, ShiftType shift)
-        {
-            return shift switch
-            {
-                ShiftType.Morning => date.Date.AddHours(6),
-                ShiftType.Afternoon => date.Date.AddHours(14),
-                ShiftType.Night => date.Date.AddHours(22),
-                ShiftType.Day12 => date.Date.AddHours(6),
-                ShiftType.Night12 => date.Date.AddHours(18),
-                _ => date
-            };
-        }
+            => date.Date.AddHours(ShiftTimes.StartHour(shift));
 
+        // Koniec = start + długość zmiany. Dodawanie godzin samo przechodzi przez północ
+        // (np. start 22:00 + 8h = 06:00 następnego dnia), więc nie ma osobnej logiki nocy.
         private static DateTime GetShiftEnd(DateTime date, ShiftType shift)
-        {
-            return shift switch
-            {
-                ShiftType.Morning => date.Date.AddHours(14),
-                ShiftType.Afternoon => date.Date.AddHours(22),
-                ShiftType.Night => date.Date.AddDays(1).AddHours(6),
-                ShiftType.Day12 => date.Date.AddHours(18),
-                ShiftType.Night12 => date.Date.AddDays(1).AddHours(6),
-                _ => date
-            };
-        }
+            => GetShiftStart(date, shift).AddHours(GetShiftDuration(shift));
 
         // ⏱️ Długość zmiany w godzinach – deleguje do wspólnego ShiftDisplay.DurationHours,
         // żeby algorytm i widoki liczyły godziny z jednej definicji (8h vs 12h).

@@ -21,10 +21,17 @@ namespace ShiftSchedulerMVC.Data
 
         public DbSet<PlannedAbsence> PlannedAbsences { get; set; }
 
+        public DbSet<ShiftTimeSetting> ShiftTimeSettings { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Jeden wiersz na typ zmiany
+            builder.Entity<ShiftTimeSetting>()
+                .HasIndex(s => s.ShiftType)
+                .IsUnique();
 
             // 🔁 Relacja 1:N - Menedżer ma wielu pracowników
             builder.Entity<ApplicationUser>()

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using ShiftSchedulerMVC.Data;
+using ShiftSchedulerMVC.Helpers;
 using ShiftSchedulerMVC.Models;
 //using ShiftSchedulerMVC.ViewModels;
 
@@ -13,11 +15,67 @@ namespace ShiftSchedulerMVC.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly ApplicationDbContext _context;
 
-        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public AdminController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _context = context;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ShiftTimes()
+        {
+            var saved = await _context.ShiftTimeSettings.ToDictionaryAsync(s => s.ShiftType, s => s.StartHour);
+
+            var model = new ShiftTimeSettingsViewModel
+            {
+                Shifts = Enum.GetValues<ShiftType>()
+                    .Select(st => new ShiftTimeRow
+                    {
+                        ShiftType = st,
+                        StartHour = saved.TryGetValue(st, out var h) ? h : ShiftSchedulerMVC.Helpers.ShiftTimes.DefaultStartHour(st)
+                    })
+                    .ToList()
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ShiftTimes(ShiftTimeSettingsViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            foreach (var row in model.Shifts)
+            {
+                var setting = await _context.ShiftTimeSettings
+                    .FirstOrDefaultAsync(s => s.ShiftType == row.ShiftType);
+
+                if (setting == null)
+                {
+                    _context.ShiftTimeSettings.Add(new ShiftTimeSetting
+                    {
+                        ShiftType = row.ShiftType,
+                        StartHour = row.StartHour
+                    });
+                }
+                else
+                {
+                    setting.StartHour = row.StartHour;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Odświeżenie globalnego cache'u, żeby algorytm i widoki od razu użyły nowych godzin.
+            var dict = await _context.ShiftTimeSettings.ToDictionaryAsync(s => s.ShiftType, s => s.StartHour);
+            ShiftSchedulerMVC.Helpers.ShiftTimes.Load(dict);
+
+            TempData["Success"] = "Zapisano godziny rozpoczęcia zmian.";
+            return RedirectToAction("ShiftTimes");
         }
 
         public async Task<IActionResult> Index(string roleFilter = null, string nameFilter = null, string positionFilter = null)
